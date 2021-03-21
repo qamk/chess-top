@@ -1,14 +1,13 @@
 # frozen-string-literal: true
 
+# Contains attributes and methods mutual to each piece
 class Piece
-
-  def initialize
+  def initialize(colour)
     @symbol = ''
     @value = 1.0
     @directions = []
     @moveset = []
     @captured = false
+    @colour = colour
   end
-
-
 end
