@@ -7,7 +7,6 @@ class Knight < Piece
   def initialize(colour)
     super(colour)
     @value = 3
-    freeze
   end
 
   def direction_list

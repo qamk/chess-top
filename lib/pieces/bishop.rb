@@ -7,7 +7,6 @@ class Bishop < Piece
   def initialize(colour)
     super(colour)
     @value = 3.5
-    freeze
   end
 
   def direction_list

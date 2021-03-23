@@ -7,7 +7,6 @@ class King < Piece
   def initialize(colour)
     super(colour)
     @value = 100
-    freeze
   end
 
   def direction_list
