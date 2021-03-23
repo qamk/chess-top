@@ -6,7 +6,7 @@ class Piece
     @symbol = ''
     @value = 1.0
     @directions = []
-    @moveset = []
+    @available_moves = []
     @captured = false
     @colour = colour
   end
