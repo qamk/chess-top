@@ -5,21 +5,35 @@ class Movement
 
   attr_reader :active_piece
 
+  # Instead of passing "piece", active piece will be used instead
+
   def focus_on(active_piece)
     @active_piece = active_piece
   end
 
-  def populate_available_moves
-    
+  # Each piece needs a method for updating @available_moves, @location, @captured
+  def populate_available_moves(directions, location)
+    sum = proc { |a, b| a + b }
+    directions.negate
+    directions.map do |direction|
+      component_match = [direction, location].transpose
+      component_match.map { |component| sum.call(component) }
+    end
+  end
+
+  def negate
+    additive_inverse = proc { |a, b| [a * -1, b * -1] }
+    inverse = map { |coord| additive_inverse.call(coord) }
+    inverse.each { |inv| push(inv) }
   end
 
   def perform_quick_move(piece, coords)
-    change_in_position = calculate_component_difference([piece.location, coords].transpose)
+    change_in_position = calculate_component_difference([piece.location, coords].transpose) # handle in other method
     scaler_list = calculate_scalers(piece.directions, change_in_position)
-    verify_move(scaler_list)
+    verify_quick_move(scaler_list)
   end
 
-  def verify_move(scalers)
+  def verify_quick_move(scalers)
     scalers.uniq.count == 1
   end
 
