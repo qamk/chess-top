@@ -14,13 +14,31 @@ class Movement
   # Each piece needs a method for updating @available_moves, @location, @captured
   def populate_available_moves(directions, location)
     sum = proc { |a, b| a + b }
-    directions.negate
     directions.map do |direction|
       component_match = [direction, location].transpose
       component_match.map { |component| sum.call(component) }
     end
   end
 
+  def moves_to_end(piece_directions, location)
+    unfilterd_moves = []
+    directions = piece_directions.clone.negate
+    (1..7).each do |scaler|
+      scaled_directions = multiply_by_scaler(directions, scaler)
+      prospective_moves = populate_available_moves(scaled_directions, location)
+      print "\e[0m\t\e[32mCoef: #{scaler}\n\t\e[33mLocation: #{location}\n\e[34mScaled_directions: #{scaled_directions}\n\e[36mProspective_moves: #{prospective_moves}\n"
+      prospective_moves.each { |p_move| unfilterd_moves << p_move }
+    end
+    unfilterd_moves.select { |a, b| a.between?(0, 7) && b.between?(0, 7) }
+  end
+
+  def multiply_by_scaler(array, scaler)
+    return array if scaler == 1
+
+    array.map { |a, b| [a * scaler, b * scaler] }
+  end
+
+  # Appends the negated directions so a piece has a complete list of directions
   def negate
     additive_inverse = proc { |a, b| [a * -1, b * -1] }
     inverse = map { |coord| additive_inverse.call(coord) }
