@@ -4,8 +4,8 @@ require_relative 'general'
 
 # Characteristics of the Bishop class
 class Queen < Piece
-  def initialize(colour)
-    super(colour)
+  def initialize(colour, location)
+    super(colour, location)
     @value = 3.5
   end
 

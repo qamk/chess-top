@@ -2,7 +2,8 @@
 
 # Contains attributes and methods mutual to each piece
 class Piece
-  def initialize(colour, location = [])
+  attr_reader :colour
+  def initialize(colour, location)
     @symbol = ''
     @value = 1.0
     @directions = []
@@ -10,5 +11,20 @@ class Piece
     @location = location
     @captured = false
     @colour = colour
+  end
+
+  # replace clear with something non-destructive
+  def update_available_moves(available_moves)
+    @available_moves.clear
+    @available_moves.concat(available_moves)
+  end
+
+  def update_location(new_location)
+    @location.clear
+    @location.concat(new_location)
+  end
+
+  def captured?
+    @captured = true
   end
 end

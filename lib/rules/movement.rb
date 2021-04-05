@@ -6,13 +6,13 @@ class Movement
   attr_reader :active_piece
 
   # Instead of passing "piece", active piece will be used instead
-
+  # Sort out 0 division stuff
   def focus_on(active_piece)
-    @active_piece = active_piece
+    @active_piece = active_piece.clone
   end
 
   # Each piece needs a method for updating @available_moves, @location, @captured
-  def populate_available_moves(directions, location)
+  def calculate_move_vectors(directions, location)
     sum = proc { |a, b| a + b }
     directions.map do |direction|
       component_match = [direction, location].transpose
@@ -20,16 +20,22 @@ class Movement
     end
   end
 
-  def moves_to_end(piece_directions, location)
+  def find_all_legal_moves(num_jumps = 7, location = active_piece.location, p_directions = active_piece.directions)
     unfilterd_moves = []
-    directions = piece_directions.clone.negate
-    (1..7).each do |scaler|
+    directions = p_directions.negate
+    (1..num_jumps).each do |scaler|
       scaled_directions = multiply_by_scaler(directions, scaler)
-      prospective_moves = populate_available_moves(scaled_directions, location)
-      print "\e[0m\t\e[32mCoef: #{scaler}\n\t\e[33mLocation: #{location}\n\e[34mScaled_directions: #{scaled_directions}\n\e[36mProspective_moves: #{prospective_moves}\n"
+      prospective_moves = calculate_move_vectors(scaled_directions, location)
+      # print "\e[0m\t\e[32mCoef: #{scaler}\n\t\e[33mLocation: #{location}\n\e[34mScaled_directions: #{scaled_directions}\n\e[36mProspective_moves: #{prospective_moves}\n"
       prospective_moves.each { |p_move| unfilterd_moves << p_move }
     end
     unfilterd_moves.select { |a, b| a.between?(0, 7) && b.between?(0, 7) }
+  end
+
+  def normal_move
+    return find_all_legal_moves unless %w[Pawn Knight King].include? active_piece.class.to_s
+
+    find_all_legal_moves(1)
   end
 
   def multiply_by_scaler(array, scaler)
@@ -45,13 +51,13 @@ class Movement
     inverse.each { |inv| push(inv) }
   end
 
-  def perform_quick_move(piece, coords)
-    change_in_position = calculate_component_difference([piece.location, coords].transpose) # handle in other method
-    scaler_list = calculate_scalers(piece.directions, change_in_position)
-    verify_quick_move(scaler_list)
+  def perform_quick_move(coords)
+    change_in_position = calculate_component_difference([active_piece.location, coords].transpose) # handle in other method
+    scaler_list = calculate_scalers(active_piece.directions, change_in_position)
+    verify_quick_move?(scaler_list)
   end
 
-  def verify_quick_move(scalers)
+  def verify_quick_move?(scalers)
     scalers.uniq.count == 1
   end
 

@@ -4,8 +4,8 @@ require_relative 'general'
 
 # Characteristics of the Bishop class
 class Knight < Piece
-  def initialize(colour)
-    super(colour)
+  def initialize(colour, location)
+    super(colour, location)
     @value = 3
   end
 
