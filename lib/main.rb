@@ -1,0 +1,2 @@
+# frozen-string-literal: true
+
