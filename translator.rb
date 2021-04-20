@@ -6,27 +6,26 @@ class Translator
 
   attr_reader :input
 
-  def translate(input)
-    @input = input
-    return 'input_error' unless valid_notation?
-
-    quick = quick_move?
-    [quick, translate_location]
+  def focus_on(input)
+    @inptut = input
   end
 
-  # Quick move or not
-  def quick_move?
-    input[0] == '#'
-  end
+  # For when the different ways to move are sorted out
+  # def translate
+  #   return 'input_error' unless valid_notation?
+
+  #   quick = quick_move?
+  #   [quick, translate_location]
+  # end
 
   # Checks if the regexp is matched
   def valid_notation?
-    input =~ /#?[QNBPKR][a-h][1-8]/
+    input.match(/[QNBPKR][a-h][1-8]/).is_a? MatchData
   end
 
-  def translate_location
-    row = input[-1].decode
-    col = input[-2].decode
+  def translate_location(loc = input)
+    row = loc[-1].decode
+    col = loc[-2].decode
     [row, col]
   end
 

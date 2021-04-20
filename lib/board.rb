@@ -38,9 +38,10 @@ class ChessBoard
     @board[row].map { Pawn.new(colour, [row, file.shift]) }
   end
 
+  # display valid_locations like in normal chess apps
   def plot_available_moves(piece)
     valid_locations = movement.focus_on(piece).normal_move
-    # display valid_locations like in normal chess apps
+    piece.update_available_moves(valid_locations)
   end
 
   # Create a spectator class that looks along a file/rank/diag
@@ -49,18 +50,33 @@ class ChessBoard
   end
 
   def select_square(coords, colour)
-    square_contents = [coords[:row], coords[:column]]
+    square_contents = [coords[0], coords[1]]
 
 
-    return square_contents if valid_selection?(square_contents, colour)
+    validity = valid_selection?(square_contents, colour)
 
-    'invalid'
+    case validity
+    when nil
+      :empty
+    when true
+      [:friendly, square_contents]
+    else
+      :hostile
+    end
   end
 
   def valid_selection?(square_contents, colour)
-    return false unless square_contents.respond_to? :colour
+    return nil unless square_contents.respond_to? :colour
 
     square_contents.colour == colour
+  end
+
+  def update_board(piece, destination)
+    old_row, old_col = piece.location
+    new_row, new_col = destination
+    @board[new_row][new_col] = piece
+    @board[old_row][old_col] = nil
+    piece.update_location(destination)
   end
 
 end
