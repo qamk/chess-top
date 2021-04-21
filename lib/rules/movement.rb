@@ -38,6 +38,9 @@ class Movement
     find_all_legal_moves(1)
   end
 
+  # --------- For when I sort out quick move inputs in Game and Translate (moving without piece selection) ----------
+  # --------- Likely move to the move validator ----------
+
   def multiply_by_scaler(array, scaler)
     return array if scaler == 1
 

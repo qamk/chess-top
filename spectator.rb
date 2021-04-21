@@ -2,6 +2,7 @@
 
 require_relative 'board'
 require_relative 'rules/movement'
+require_relative 'pieces/general'
 
 # Reads files and ranks to look for pieces
 class Spectator
@@ -9,15 +10,23 @@ class Spectator
   piece_selector = ->(list) { list.select { |element| element.is_a? Piece } }
 
   attr_reader :location, :mover, :board, :spec_directions
-  def initialize(mover = Movement.new, board = nil)
+  def initialize(mover = Movement.new)
     @mover = mover
     @location = { rank: 0, file: 0 }
-    @board = board
     @spec_directions = []
   end
 
-  def update_location(location)
-    @location = location
+  def get_current_board(board)
+    @board = board
+  end
+
+  def update_location(rank, file)
+    @location[:rank] = rank
+    @location[:file] = file
+  end
+
+  def scan_around_location
+    [scan_file_at_location, scan_rank_at_location, scan_diagonal_at_location]
   end
 
   # Returns the pieces in the spectator's file
@@ -34,10 +43,16 @@ class Spectator
   end
   
   # Returns the pieces in the spectator's diagonal
-  def scan_diagonal
+  def scan_diagonal_at_location
     location_array = location.values
     local_directions = [[1, 1], [-1, 1]]
-    mover.find_all_legal_moves(7, location_array, local_directions)
+    coords = mover.find_all_legal_moves(7, location_array, local_directions)
+    diagonals_list = coords.map { |rank, file| board[rank][file] }
+    pieces_in_diagonal = piece_slector.call(diagonals_list)
+  end
+
+  def scan_board_for_piece(piece)
+    board.flatten.select { |item| item.is_a? piece }
   end
   
   # Simulates movement in given directions
