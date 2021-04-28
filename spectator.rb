@@ -46,7 +46,7 @@ class Spectator
   def scan_diagonal_at_location
     location_array = location.values
     local_directions = [[1, 1], [-1, 1]]
-    coords = mover.find_all_legal_moves(7, location_array, local_directions)
+    coords = mover.find_all_legal_moves(14, location_array, local_directions)
     diagonals_list = coords.map { |rank, file| board[rank][file] }
     pieces_in_diagonal = piece_slector.call(diagonals_list)
   end
