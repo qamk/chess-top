@@ -26,7 +26,7 @@ class Spectator
   end
 
   def scan_around_location
-    [scan_file_at_location, scan_rank_at_location, scan_diagonal_at_location]
+    [scan_file_at_location, scan_rank_at_location, scan_diagonal_at_location].flatten
   end
 
   # Returns the pieces in the spectator's file
