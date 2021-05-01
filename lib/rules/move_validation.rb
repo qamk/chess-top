@@ -6,7 +6,7 @@ class MoveValidator
   attr_reader :current_board, :spectator#, :past_board
 
   def initialize(board, spectator = Spectator.new, mover = Movement.new)
-    @current_board
+    @current_board = board
     @spectator = spectator
     @mover = mover
     # @kings = {}
@@ -45,7 +45,7 @@ class MoveValidator
     candidate_direction_to_target = direction_to_target_index(candidates, target)
     # find all legal moves in that direction
     candidate_direction_pair = candidates.zip(candidate_direction_to_target)
-    candidate_perspectives = candidate_direction_pair.map { |cand, dirc| mover.find_all_legal_moves(7, cand.location, dirc, false) }
+    candidate_perspectives = candidate_direction_pair.map { |cand, dirc| mover.find_all_legal_moves(7, false, cand.location, dirc) }
     return candidate_perspectives if coords_only
 
     candidate_perspectives.map { |persp| persp.map { |rank, file| current_board[rank][file] } }
@@ -89,6 +89,18 @@ class MoveValidator
     # direction_indices_to_king = unclean_direction_indices_to_king.map { |index| index.empty? ? :wrong_direction : index }
     paired_indices_pieces = direction_indices_to_target.flatten.zip(candidates)
     paired_indices_pieces.map { |index, piece| [piece.directions[index]] }
+  end
+
+  def pawn_move?(pawn, destination, contents)
+    return false if contents == :friendly
+
+    direction = square_in_right_direction?(pawn, destination, true)
+    case direction
+    when 0
+      true if contents == :empty
+    else
+      true if contents == :hostile
+    end
   end
 
   # ---------- Also for a version with quick move sorted ----------

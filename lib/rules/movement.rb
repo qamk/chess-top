@@ -20,7 +20,7 @@ class Movement
     end
   end
 
-  def find_all_legal_moves(num_jumps = 7, location = active_piece.location, p_directions = active_piece.directions, negate = true)
+  def find_all_legal_moves(num_jumps = 7, negate = true, location = active_piece.location, p_directions = active_piece.directions)
     unfilterd_moves = []
     directions = p_directions.dup
     directions.negate if negate
@@ -33,12 +33,12 @@ class Movement
     unfilterd_moves.select { |a, b| a.between?(0, 7) && b.between?(0, 7) }
   end
 
-  def normal_move
+  def normal_move(negate = true)
     return find_all_legal_moves unless %w[Pawn Knight King Bishop].include? active_piece.class.to_s
 
     return find_all_legal_moves(14) if active_piece.class.to_s == 'Bishop'
 
-    find_all_legal_moves(1)
+    find_all_legal_moves(1, negate)
   end
 
   # --------- For when I sort out quick move inputs in Game and Translate (moving without piece selection) ----------

@@ -10,11 +10,7 @@ class Pawn < Piece
   end
 
   def direction_list
-    @directions = [0, 1].freeze
-  end
-
-  def special_direction_list
-    @special_directions = [[1, 1], [-1, 1]]
+    @directions = [[0, 1], [1, 1], [-1, 1]].freeze
   end
 
 end

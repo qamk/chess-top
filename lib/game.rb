@@ -6,11 +6,11 @@ require_relative './spectator'
 
 # Handles input and general game functions
 class Game
-  attr_reader :game_translator, :game_board, :game_spectator, :players, :active_player
+  attr_reader :game_translator, :game_board, :game_spectator, :game_validator, :players, :active_player
   def initialize(game_components)
     @game_board = game_components[:board]
     @game_translator = game_components[:translator]
-    # @game_spectator = game_components[:spectator]
+    @game_validator = game_components[:validator]
     @players = %i[white black]
     @active_player = nil
   end
@@ -26,8 +26,12 @@ class Game
   def game_start
     players.cycle do |player|
       @active_player = player
-      # board in check/checkmate
+      # display board
+      # king in check/checkmate
       selection = make_selection
+      # plot available moves -- no negate for pawn
+      board.plot_available_moves(selection)
+      # display board
       make_move(selection)
     end
   end
@@ -44,21 +48,30 @@ class Game
   end
 
   def make_move(piece)
-    destination_square = verify_destination
+    destination_square = obtain_destination_square(piece)
+
     # capture
     game_board.update_board(piece, destination_square)
 
   end
   
-  def verify_destination
+  def obtain_destination_square(piece)
     loop do
       destination_input = obtain_validate_input(destination: true)
       destination = process_input(destination_input)
-      destination_contents = select_piece(destination)
-      return destination unless destination_contents.include? :friendly
+      return destination if valid_destination?(piece, destination)
 
       # invalid destination
     end
+  end
+
+  def valid_destination?(piece, destination)
+    return false unless piece.available_moves.include? destination
+
+    destination_contents = select_piece(destination)
+    return pawn_move?(piece, destination, destination_contents) if piece.is_a? Pawn
+
+    %i[empty hostile].include? destination_contents
   end
 
   def obtain_validate_input(destination: false)

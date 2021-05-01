@@ -39,22 +39,20 @@ class ChessBoard
   end
 
   # display valid_locations like in normal chess apps
-  def plot_available_moves(piece)
-    valid_locations = movement.focus_on(piece).normal_move
+  def plot_available_moves(piece, negate = true)
+    negate = false if piece.is_a? Pawn
+    valid_locations = movement.focus_on(piece).normal_move(negate)
     piece.update_available_moves(valid_locations)
   end
 
   # Create a spectator class that looks along a file/rank/diag
-  def quick_move?(piece, coords)
-    movement.focus_on(piece).perform_quick_move(coords)
-  end
+  # def quick_move?(piece, coords)
+  #   movement.focus_on(piece).perform_quick_move(coords)
+  # end
 
   def select_square(coords, colour)
     square_contents = [coords[0], coords[1]]
-
-
     validity = valid_selection?(square_contents, colour)
-
     case validity
     when nil
       :empty
