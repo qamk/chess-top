@@ -6,10 +6,10 @@ require_relative './rules/move_validation'
 
 # Mechanics for interacting with the chess board
 class ChessBoard
-  attr_reader :board, :movement
+  attr_reader :board, :move_validator
   def initialize(board = Array.new(8) { Array.new(8) }, args = {})
     @board = board
-    @movement = args[:movement]
+    @move_validator = args[:move_validator]
     @board_theme = args[:theme]
   end
 
@@ -41,7 +41,7 @@ class ChessBoard
   # display valid_locations like in normal chess apps
   def plot_available_moves(piece, negate = true)
     negate = false if piece.is_a? Pawn
-    valid_locations = movement.focus_on(piece).normal_move(negate)
+    valid_locations = move_validator.unblocked_path(piece, negate)
     piece.update_available_moves(valid_locations)
   end
 

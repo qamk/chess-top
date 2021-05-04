@@ -1,4 +1,5 @@
 # frozen-string-literal: true
+# rubocop: disable ClassLength
 
 # Movement validation including check and checkmate, interfacing with spectator
 class MoveValidator
@@ -14,7 +15,7 @@ class MoveValidator
 
   # Take a look at the current board
   def take_board_snapshot(board)
-    # @past_board = current_board # potentially for an intelligent computer
+    # @past_board = current_board # potentiother_pieces for an intelligent computer
     @current_board = board
     @spectator.get_current_board(current_board)
   end
@@ -91,6 +92,40 @@ class MoveValidator
     paired_indices_pieces.map { |index, piece| [piece.directions[index]] }
   end
 
+  # Returns the unobstructed path of piece
+  def unblocked_path(piece, negate)
+    full_path = mover.focus_on(piece).normal_move(negate)
+    return full_path if %w[Knight Pawn King].include? piece.class.to_s
+
+    path_on_board = full_path.map { |rank, file| board[rank][file] }
+    other_pieces_in_path = find_other_pieces(path_on_board)
+    path_beyond_other_pieces = paths_of_other_pieces(piece, other_pieces_in_path)
+    remove_mutual_path(full_path, path_beyond_other_pieces)
+  end
+
+  # Returns list in main path that is not in other_pieces_path
+  def remove_mutual_path(main_path, other_pieces_path)
+    joined_other_pieces_path = other_pieces_path.reduce([], :concat)
+    main_path - joined_other_pieces_path
+  end
+
+  def find_other_pieces(path)
+    path.select do |piece|
+      next(false) if piece.nil?
+
+      true
+    end
+  end
+
+  def paths_of_other_pieces(piece, other_pieces)
+    direction_of_other_pieces_indices = other_pieces.map { |other_pieces| square_in_right_direction?(piece, other_pieces.location, true) }
+    # map path in that direction from each other_pieces's location
+    # reject all mutual paths
+    direction_of_other_pieces = direction_of_other_pieces_indices.map { |index| piece.directions[index] }
+    other_pieces_direction_pair = other_pieces.zip(direction_of_other_pieces)
+    other_pieces_direction_pair.map { |other_pieces, direction| mover.find_all_legal_moves(14, false, other_pieces.location, direction) }
+  end
+
   def pawn_move?(pawn, destination, contents)
     return false if contents == :friendly
 
@@ -107,10 +142,25 @@ class MoveValidator
 
   def square_in_right_direction?(piece, destination, report_direction = false)
     change_in_position = calculate_component_difference([piece.location, destination].transpose) # handle in other method
+    return vertical_horizontal?(change_in_position, piece.directions, report_direction) if one_dimensional_movement?(change_in_position)
+
     scaler_list = calculate_scalers(piece.directions, change_in_position)
     return valid_scalers?(scaler_list) unless report_direction
 
     valid_scalers?(scaler_list, report_direction)
+  end
+
+  def one_dimensional_movement?(change)
+    change.one?(&:zero?)
+  end
+
+  def vertical_horizontal?(change, directions, report_direction)
+    dirc = ->(list, divisor) { list.map { |val| val / divisor } }
+    non_zero = change.reject(&:zero?).shift
+    calculated_direction = dirc.call(change, non_zero)
+    return directions.include? calculated_direction unless report_direction
+
+    [directions.index(calculated_direction)]
   end
 
   # The final check whether a destination is in the direction of some piece

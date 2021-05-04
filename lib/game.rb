@@ -43,7 +43,7 @@ class Game
       selected_piece = select_piece(processed)
       return selected_piece[-1] if selected_piece.include? :friendly
 
-      # display invalid selection message
+      # display invalid selection message (empty/hostile)
     end
   end
 
@@ -78,8 +78,9 @@ class Game
     loop do
       # print prompt for move/command
       # print prompt for destination
-      input = gets.chomp
+      input = gets.chomp.downcase
       return input if valid_input?(input)
+      # print invalid notation prompt
     end
   end
 
