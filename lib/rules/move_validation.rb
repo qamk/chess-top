@@ -138,12 +138,12 @@ class MoveValidator
   end
 
   def paths_of_other_pieces(piece, other_pieces)
-    direction_of_other_pieces_indices = other_pieces.map { |other_pieces| square_in_right_direction?(piece, other_pieces.location, true) }
+    direction_of_other_pieces_indices = other_pieces.map { |others| square_in_right_direction?(piece, others.location, true) }
     # map path in that direction from each other_pieces's location
     # reject all mutual paths
     direction_of_other_pieces = direction_of_other_pieces_indices.map { |index| piece.directions[index] }
     other_pieces_direction_pair = other_pieces.zip(direction_of_other_pieces)
-    other_pieces_direction_pair.map { |other_pieces, direction| mover.find_all_legal_moves(14, false, other_pieces.location, direction) }
+    other_pieces_direction_pair.map { |others, direction| mover.find_all_legal_moves(14, false, others.location, direction) }
   end
 
   def pawn_move?(pawn, destination, contents)

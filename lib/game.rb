@@ -2,7 +2,10 @@
 
 # Handles input and general game functions
 class Game
-  attr_reader :game_translator, :game_board, :game_spectator, :game_validator, :players, :active_player, :end_game
+  attr_reader :game_translator, :game_output, :game_board, :game_spectator, :game_validator, :players, :active_player, :end_game
+
+  COMMANDS = %W[quit commands save]
+
   def initialize(game_components)
     @game_board = game_components[:board]
     @game_translator = game_components[:translator]
@@ -24,6 +27,7 @@ class Game
   def game_start
     players.cycle do |player|
       @active_player = player
+      game_output.take_snapshot(board).display_game_state
       @end_game = game_validator.end_game_conditions?(player)
       selection = make_selection
       board.plot_available_moves(selection)
@@ -34,20 +38,51 @@ class Game
 
   def make_selection
     loop do
-      selected_square = obtain_validate_input
-      processed = process_input(selected_square)
+      input = obtain_validate_input
+      return if input == 'quit'
+
+      handle_commands(input) if COMMANDS.include? input
+      processed = process_input(input)
       selected_piece = select_piece(processed)
       return selected_piece[-1] if selected_piece.include? :friendly
 
-      # display invalid selection message (empty/hostile)
+      selection_messages(selected_piece[0])
     end
   end
 
-  def make_move(piece)
-    destination_square = obtain_destination_square(piece)
+  def selection_messages(key)
+    case key
+    when :hostile
+      game_output.text_message(:hostile_selection)
+    else
+      game_output.text_message(:empty_selection)
+    end
+  end
 
-    # capture
-    game_board.update_board(piece, destination_square)
+  def handle_commands(command)
+    command_methods = { 'commands' => :commands, 'save' => :serialise }
+    send(command_methods[command])
+  end
+
+  def commands
+    game_output.text_message(:command_list_msg)
+    game_output.display_game_state
+  end
+
+  def serialise
+    
+  end
+
+  def make_move(piece)
+    board_snapshot = game_board.dup
+    loop do
+      destination_square = obtain_destination_square(piece)
+      game_board.update_board(piece, destination_square)
+      break unless king_in_check?(piece.colour)
+
+      game_output.text_message(:check_msg, active_player)
+    end
+
 
   end
   
@@ -57,7 +92,7 @@ class Game
       destination = process_input(destination_input)
       return destination if valid_destination?(piece, destination)
 
-      # invalid destination
+      game_output.text_message(:invalid_destination)
     end
   end
 
@@ -72,16 +107,24 @@ class Game
 
   def obtain_validate_input(destination: false)
     loop do
-      # print prompt for move/command
-      # print prompt for destination
+      input_messages(destination)
       input = gets.chomp.downcase
       return input if valid_input?(input)
-      # print invalid notation prompt
+
+      game_output.text_message(:invalid_notation)
+    end
+  end
+
+  def input_messages(destination)
+    if destination
+      game_output.text_message(:selection_promt, active)
+    else
+      game_output.text_message(:destination_prompt, active_player)
     end
   end
 
   def valid_input?(input)
-    @game_translator.focus_on(input).valid_notation?
+    COMMANDS.include? input or @game_translator.focus_on(input).valid_notation?
   end
 
   # Interface with Board class
@@ -90,8 +133,7 @@ class Game
   end
 
   def process_input(input = nil)
-    # perform + display
-    # ...
+    # quick_move translations
     game_translator.translate_location(input)
   end
   

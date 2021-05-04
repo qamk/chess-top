@@ -21,13 +21,13 @@ class GameOutput
     @last_piece = last_piece
   end
 
-  def text_message(message, board = true, arg = nil)
+  def text_message(message, arg = nil, board = true)
     display_game_state if board
     args.nil? ? send(message) : send(message, arg)
   end
 
   def display_game_state
-    take_snapshot
+    system('clear')
     flip if last_piece.colour == :black
     print_board
     FILE.each { |file| print "  #{file}  " }
@@ -58,7 +58,7 @@ class GameOutput
 
   def print_square(piece, bg_colour, move_to, piece_colour)
     if piece.nil? && move_to
-      print "\e[#{bg_colour}; #{theme[-1]}m    \e[0m"
+      print "\e[#{bg_colour};#{theme[-1]}m\u25CF    \e[0m"
     elsif piece && move_to
       print "\e[#{theme[-2]};#{piece_colour}m    #{piece.symbol}\e[0m"
     elsif piece.nil?
@@ -69,10 +69,11 @@ class GameOutput
   end
 
   def change_theme(theme_key)
-    themes = {
-      # classic: [black_bg, grey_bg, orange_bg, orange_circle]
+    # [dark_bg, light_bg, highlight_bg, highlight_circle]
+    {
+      classic: ['100', '47', '48;5;208', '38;5;208']
       # mint: [#mint_bg, dim_mint_bg, blue_bg, blue_circle]
-    }
+    }[theme_key]
   end
 
   def flip
@@ -80,12 +81,11 @@ class GameOutput
   end
 
   def take_snapshot(current_board)
-    @board_history_stack.unshift(board)
-    @board = current_board
+    
+    @board_history_stack.unshift(board.dup)
+    @board = current_board.dup
   end
 
-  def view_past_boards
-
-  end
+  def view_past_boards;end
 
 end

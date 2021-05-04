@@ -2,7 +2,7 @@
 
 module TextOutput
 
-  COMMANDS = [['198','help --> bring up game instructions'],
+  COMMANDS = [['198','commands --> bring up game instructions'],
               ['27','save --> save the game'],
               ['226', 'quit --> exit the game']]
 
@@ -21,14 +21,16 @@ module TextOutput
     gets.chomp
   end
 
-  def make_move_promt(colour)
-    player = colour == 97 ? "White" : "Black"
-    puts "#{player.bold} to select. Please enter the location of the piece you want to move (alternatively enter a command):"
+  def selection_promt(colour)
+    puts "#{colour.upcase.bold} to select. Please enter the location of the piece you want to move (alternatively enter a command):"
   end
 
   def destination_prompt(colour)
-    player = colour == 97 ? "White" : "Black"
-    puts "#{player.bold} to move. Please enter the location you want to move this piece to (alternatively enter a command):"
+    puts "#{colour.upcase.bold} to move. Please enter the location you want to move this piece to (alternatively enter a command):"
+  end
+
+  def invalid_destination
+    puts "That destination is #{"invalid".red}. Please ensure your piece can move there.
   end
 
   def invalid_notation
@@ -37,11 +39,16 @@ module TextOutput
 
   def checkmate_msg(winner)
     loser = winner == "Black" ? "White" : "Black" 
-    puts "#{"Checkmate".green} on #{loser} king! Congrats to #{winner.bold}"
+    puts "#{"Checkmate".green} on #{loser} king! Congrats to #{winner.upcase.bold}"
   end
 
   def stalemate_msg
     puts "#{"Stalemate".yellow}. No legal moves can be made and King is not in check."
+  end
+
+  def check_msg(colour)
+    puts "Cannot make that move because the #{colour.bold} king is in check."
+    puts "Please make a move that will #{"get the king out of check".italics}."
   end
 
 
@@ -61,6 +68,14 @@ module TextOutput
 
   def green
     "\e[32m#{self}\e[0m"
+  end
+
+  def bold
+    "\e[1m#{self}\e[0m"
+  end
+
+  def italics
+    "\e[3m#{self}\e[0m"
   end
 
 
