@@ -36,7 +36,6 @@ module TextOutput
   end
 
   def checkmate_msg(winner)
-    winner = winner == 97 ? "White" : "Black"
     loser = winner == "Black" ? "White" : "Black" 
     puts "#{"Checkmate".green} on #{loser} king! Congrats to #{winner.bold}"
   end
@@ -45,7 +44,6 @@ module TextOutput
     puts "#{"Stalemate".yellow}. No legal moves can be made and King is not in check."
   end
 
-  def 
 
   # Colours
 

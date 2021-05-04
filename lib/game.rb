@@ -1,19 +1,16 @@
 # frozen-string-literal: true
 
-require_relative './board'
-require_relative './translator'
-require_relative './display'
-
 # Handles input and general game functions
 class Game
-  attr_reader :game_translator, :game_board, :game_spectator, :game_validator, :players, :active_player
+  attr_reader :game_translator, :game_board, :game_spectator, :game_validator, :players, :active_player, :end_game
   def initialize(game_components)
     @game_board = game_components[:board]
     @game_translator = game_components[:translator]
     @game_validator = game_components[:validator]
-    @game_output
+    @game_output = game_components[:display]
     @players = %i[white black]
     @active_player = nil
+    @end_game = nil
   end
 
   def play
@@ -27,10 +24,8 @@ class Game
   def game_start
     players.cycle do |player|
       @active_player = player
-      # display board
-      # king in check/checkmate
+      @end_game = game_validator.end_game_conditions?(player)
       selection = make_selection
-      # plot available moves -- no negate for pawn
       board.plot_available_moves(selection)
       # display board
       make_move(selection)

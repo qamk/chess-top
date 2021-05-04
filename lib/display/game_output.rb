@@ -28,7 +28,7 @@ class GameOutput
 
   def display_game_state
     take_snapshot
-    flip unless last_piece.nil? || last_piece.colour == 30
+    flip if last_piece.colour == :black
     print_board
     FILE.each { |file| print "  #{file}  " }
   end
@@ -46,7 +46,8 @@ class GameOutput
       theme_colour = theme[colour_index]
       move_to = in_last_piece(r_index, f_index) unless last_piece.nil?
       print f_index
-      print_square(piece, theme_colour, move_to)
+      piece_colour = piece.colour == :white ? 97 : 30
+      print_square(piece, theme_colour, move_to, piece_colour)
       puts
     end
   end
@@ -55,15 +56,15 @@ class GameOutput
     last_piece.include? [rank, file]
   end
 
-  def print_square(piece, bg_colour, move_to)
+  def print_square(piece, bg_colour, move_to, piece_colour)
     if piece.nil? && move_to
       print "\e[#{bg_colour}; #{theme[-1]}m    \e[0m"
     elsif piece && move_to
-      print "\e[#{theme[-2]};#{piece.colour}m    #{piece.symbol}\e[0m"
+      print "\e[#{theme[-2]};#{piece_colour}m    #{piece.symbol}\e[0m"
     elsif piece.nil?
       print "\e[#{bg_colour}m    \e[0m"
     else
-      print "\e[#{bg_colour};#{piece.colour}m    #{piece.symbol}\e[0m"
+      print "\e[#{bg_colour};#{piece_colour}m    #{piece.symbol}\e[0m"
     end
   end
 

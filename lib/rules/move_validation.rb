@@ -14,6 +14,16 @@ class MoveValidator
     # @kings = {}
   end
 
+  def end_game_conditions?(colour)
+    if checkmate?(colour)
+      :mate
+    elsif stalemate?(colour)
+      :stalemate
+    else
+      false
+    end
+  end
+
   # Take a look at the current board
   def take_board_snapshot(board)
     # @past_board = current_board # potentiother_pieces for an intelligent computer
@@ -76,6 +86,15 @@ class MoveValidator
     return false if no_way_out?(moves, candidates)
 
     candidates.any? { |cand| check?(cand, colour) }
+  end
+
+  def stalemate?(colour)
+    return false if king_in_check?(colour)
+
+    king = find_king(colour)
+    moves = king.available_moves.map { |rank, file| current_board[rank][file] }
+    candidates = moves.map { |move| identify_target_locking_candidates(move, colour) }
+    no_way_out?(moves, candidates)
   end
 
   # True if any move has a potential capture
