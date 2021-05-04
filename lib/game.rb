@@ -2,7 +2,7 @@
 
 require_relative './board'
 require_relative './translator'
-require_relative './spectator'
+require_relative './display'
 
 # Handles input and general game functions
 class Game
@@ -11,6 +11,7 @@ class Game
     @game_board = game_components[:board]
     @game_translator = game_components[:translator]
     @game_validator = game_components[:validator]
+    @game_output
     @players = %i[white black]
     @active_player = nil
   end

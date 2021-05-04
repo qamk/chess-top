@@ -1,4 +1,5 @@
 # frozen-string-literal: true
+
 # rubocop: disable ClassLength
 
 # Movement validation including check and checkmate, interfacing with spectator

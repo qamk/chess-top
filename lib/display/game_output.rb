@@ -1,10 +1,10 @@
 # frozen-string-literal: true
 
-require_relative 'formatting'
+require_relative 'text_output'
 
 # Handles displaying the board amongst other elements
 class GameOutput
-  include Formattor
+  include TextOutput
   attr_reader :board, :theme, :board_history_stack, :last_piece
 
   # An empty square is 4 spaces ("    ")
@@ -16,13 +16,18 @@ class GameOutput
     @last_piece = nil
   end
 
-  def get_last_piece(last_piece)
-    @last_piece = last_piece 
+  # Last piece that was selected or moved
+  def obtain_last_piece(last_piece = nil)
+    @last_piece = last_piece
+  end
+
+  def text_message(message, board = true, arg = nil)
+    display_game_state if board
+    args.nil? ? send(message) : send(message, arg)
   end
 
   def display_game_state
     take_snapshot
-    get_last_piece
     flip unless last_piece.nil? || last_piece.colour == 30
     print_board
     FILE.each { |file| print "  #{file}  " }
