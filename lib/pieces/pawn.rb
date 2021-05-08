@@ -10,7 +10,15 @@ class Pawn < Piece
   end
 
   def direction_list
-    @directions = [[0, 1], [1, 1], [-1, 1]].freeze
+    @directions = valid_player_directions.freeze
+  end
+
+  def valid_player_directions
+    if colour == :white
+      [[1, 0], [2, 0], [1, 1], [1, -1]]
+    else
+      [[-1, 0], [-2, 0], [-1, -1], [-1, 1]]
+    end
   end
 
 end

@@ -10,7 +10,7 @@ class GameOutput
   # An empty square is 4 spaces ("    ")
 
   def initialize(board, theme = :classic)
-    @board = board
+    @board = board.dup
     @theme = change_theme(theme)
     @board_history_stack = [board]
     @last_piece = nil
@@ -81,8 +81,7 @@ class GameOutput
   end
 
   def take_snapshot(current_board)
-    
-    @board_history_stack.unshift(board.dup)
+    @board_history_stack.unshift(board)
     @board = current_board.dup
   end
 

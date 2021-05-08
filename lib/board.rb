@@ -5,12 +5,11 @@ require_relative './rules/move_validation'
 # Import pieces
 
 # Mechanics for interacting with the chess board
-class ChessBoard
+class Board
   attr_reader :board, :move_validator
   def initialize(board = Array.new(8) { Array.new(8) }, args = {})
     @board = board
-    @move_validator = args[:move_validator]
-    @board_theme = args[:theme]
+    # @move_validator = args[:move_validator]
   end
 
   def create_starting_board
@@ -38,17 +37,11 @@ class ChessBoard
     @board[row].map { Pawn.new(colour, [row, file.shift]) }
   end
 
-  # display valid_locations like in normal chess apps
-  def plot_available_moves(piece, negate = true)
-    negate = false if piece.is_a? Pawn
-    valid_locations = move_validator.unblocked_path(piece, negate)
-    piece.update_available_moves(valid_locations)
+  def promote(pawn, new_piece)
+    pieces = { q: Queen, r: Rook, b: Bishop, n: Knight }
+    pawn_rank, pawn_file = pawn.location
+    board[pawn_rank][pawn_file] = pieces[new_piece].new(pawn.colour, pawn.location)
   end
-
-  # Create a spectator class that looks along a file/rank/diag
-  # def quick_move?(piece, coords)
-  #   movement.focus_on(piece).perform_quick_move(coords)
-  # end
 
   def select_square(coords, colour)
     square_contents = [coords[0], coords[1]]

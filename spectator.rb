@@ -26,7 +26,15 @@ class Spectator
   end
 
   def scan_around_location
-    [scan_file_at_location, scan_rank_at_location, scan_diagonal_at_location].flatten
+    [scan_file_at_location,scan_rank_at_location,
+     scan_diagonal_at_location, scan_for_knight_at_location].flatten
+  end
+
+  def scan_for_knight_at_location
+    knight_directions = [[2, 1], [1, 2], [-2, 1], [-1, 2]]
+    coords = find_all_legal_moves(1, true, location.values, knight_directions)
+    knights = coords.map { |rank, file| board[rank][file] }
+    piece_slector.call(knights)
   end
 
   # Returns the pieces in the spectator's file

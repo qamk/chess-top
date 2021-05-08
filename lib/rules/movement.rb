@@ -3,12 +3,14 @@
 # Controls the movement for the chess pieces
 class Movement
 
-  attr_reader :active_piece
+  attr_reader :active_piece, :active_location, :active_directions
 
   # Instead of passing "piece", active piece will be used instead
   # Sort out 0 division stuff
   def focus_on(active_piece)
-    @active_piece = active_piece.clone
+    @active_piece = active_piece.dup
+    @active_location = active_piece.location
+    @active_directions = active_piece.directions
   end
 
   # Each piece needs a method for updating @available_moves, @location, @captured
@@ -20,7 +22,7 @@ class Movement
     end
   end
 
-  def find_all_legal_moves(num_jumps = 7, negate = true, location = active_piece.location, p_directions = active_piece.directions)
+  def find_all_legal_moves(num_jumps = 7, negate = true, location = active_location, p_directions = active_directions)
     unfilterd_moves = []
     directions = p_directions.dup
     directions.negate if negate
@@ -42,12 +44,11 @@ class Movement
   end
 
   # --------- For when I sort out quick move inputs in Game and Translate (moving without piece selection) ----------
-  # --------- Likely move to the move validator ----------
 
-  def multiply_by_scaler(array, scaler)
-    return array if scaler == 1
+  def multiply_by_scaler(directions, scaler)
+    return directions if scaler == 1
 
-    array.map { |a, b| [a * scaler, b * scaler] }
+    directions.map { |a, b| [a * scaler, b * scaler] }
   end
 
   # Appends the negated directions so a piece has a complete list of directions
