@@ -54,6 +54,9 @@ module TextOutput
     puts "#{"Invalid destination"}. Your piece already occupies that square."
   end
 
+  def file_name_prompt
+    puts "Please enter a #{"file name".blue} to save your game. At least 2 characters:"
+  end
 
   def checkmate_msg(winner)
     loser = winner == "Black" ? "White" : "Black" 

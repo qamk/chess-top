@@ -2,6 +2,8 @@
 
 # rubocop: disable Metrics/ClassLength
 
+require 'json'
+
 # Handles input and general game functions
 class Game
   attr_reader :game_translator, :game_output, :game_board, :game_spectator,
@@ -31,13 +33,8 @@ class Game
     players.cycle(2) do |player|
       @active_player = player
       selection = selection_processes
-      if selection == :quit
-        @end_game = true
-        break
-      end
-
-      movement_processes(selection)
-      promotion_check(selection)
+      movement_processes(selection) unless end_game
+      promotion_check(selection) unless end_game
     end
   end
 
@@ -50,18 +47,16 @@ class Game
       game_output.text_message(:invalid_notation)
     end
   end
-  
+
   def selection_processes
-    game_output.take_snapshot(board).display_game_state
-    game_validator.take_board_snapshot(game_board)
+    game_output.take_snapshot(game_board.board).display_game_state
+    game_validator.take_board_snapshot(game_board.board)
     make_selection
   end
 
   def make_selection
     loop do
       input = obtain_validate_input
-      return :quit if input == 'quit'
-
       handle_commands(input) if COMMANDS.include? input
       processed = process_input(input)
       selected_piece = select_piece(processed)
@@ -79,24 +74,25 @@ class Game
       game_output.text_message(:empty_selection)
     end
   end
-  
+
   def movement_processes(selection)
     game_validator.plot_available_moves(selection)
     game_output.obtain_last_piece(selection).display_game_state
 
     make_move(selection)
-    @game_board = game_board.board
   end
 
   def make_move(piece)
     loop do
+      board_snapshot = game_board.dup
       can_move = validate_move(piece)
-      break if can_move == true
+
+      break if can_move == true || end_game
 
       movement_messages(can_move)
-      # print a message based on the tag
+      @game_board.board = board_snapshot
     end
-    # update board
+    game_board.update_board
   end
 
   def movement_messages(tag)
@@ -107,35 +103,45 @@ class Game
       no_en_passant: [:invalid_en_passant],
       not_in_moveset: [:invalid_destination]
     }
+    method_details = movement_issues[tag]
+    game_output.text_message(*method_details)
   end
 
   def validate_move(piece)
-    board_snapshot = game_board.dup
-    destination = obtain_destination_square(piece)
+    destination = obtain_destination_square
+    return quit_game if destination == 'quit'
+
+    handle_commands(input) if COMMANDS.include? input
     return :check if game_validator.king_in_check?(piece.colour)
+
 
     meta_info = obtain_meta_info
     valid_move = move_is_valid?(piece, destination, meta_info)
-    # game_board.update_board(piece, destination_square)
 
-    # game_output.text_message(:check_msg, active_player)
-    # @game_board = board_snapshot
+    return :check if check_after_move?(piece, destination)
+
+    valid_move
   end
 
-  
+  def check_after_move?(piece, destination)
+    game_board.update_board(piece, destination)
+    game_validator.take_board_snapshot(game_board.board)
+    game_validator.king_in_check?(piece.colour)
+  end
+
   def obtain_meta_info(piece, destination)
-    { category: categorise_move(piece, destination), contents: select_piece(destination) }
+    { category: categorise_move(piece, destination, select_piece(destination)), contents: select_piece(destination) }
   end
 
-  def categorise_move(piece, destination)
-    return :castling if castling_on_starting_rank?(piece, destination)
+  def categorise_move(piece, destination, contents)
+    return :castling if castling_on_starting_rank?(piece, destination, contents)
 
-    #return :en_passant if game_validator.en_passant_check?(p, d)
+    return :en_passant if game_validator.en_passant_conditions?(piece, destination, contents)
 
     :normal
   end
 
-  def obtain_destination_square(piece)
+  def obtain_destination_square
     destination_input = obtain_validate_input(destination: true)
     process_input(destination_input)
   end
@@ -154,10 +160,10 @@ class Game
     when :castling
       game_validator.castling(piece, destination)
     when :en_passant
-      # piece, destination
+      game_validator.past_pawn_double_move?(piece)
     end
   end
-  
+
   def castling_on_starting_rank?(piece, destination)
     return false unless piece.is_a? King
 
@@ -175,7 +181,7 @@ class Game
 
     %i[empty hostile].include? contents
   end
-  
+
   def promotion_check(selection)
     return unless selection.is_a? Pawn
 
@@ -197,6 +203,11 @@ class Game
 
       game_output.text_message(:invalid_promotion)
     end
+  end
+
+  def quit_game
+    @end_game = true
+    nil
   end
 
   def end_game?
@@ -228,7 +239,29 @@ class Game
   end
 
   def serialise
-    # board, active_player
+    seralised_obj = JSON.dump(
+      {
+        board: game_board.board,
+        players: player_order,
+        theme: game_output.theme,
+        board_history: game_output.board_history_stack
+      }
+    )
+    file_name = obtain_file_name
+    File.open(file_name, 'w') { |file| file.puts seralised_obj }
+  end
+
+  def player_order
+    active_player == :white ? %i[white black] : %i[black white]
+  end
+
+  def obtain_file_name
+    loop do
+      game_output.text_message(:file_name_prompt)
+      fname = gets.chomp.downcase
+      return fname unless fname.length < 2
+    end
+    
   end
 
   def input_messages(destination)

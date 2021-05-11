@@ -124,7 +124,7 @@ class MoveValidator
     full_path = mover.focus_on(piece).normal_move(negate)
     return full_path if %w[Knight Pawn King].include? piece.class.to_s
 
-    path_on_board = full_path.map { |rank, file| board[rank][file] }
+    path_on_board = full_path.map { |rank, file| current_board[rank][file] }
     other_pieces_in_path = find_other_pieces(path_on_board)
     path_beyond_other_pieces = paths_of_other_pieces(piece, other_pieces_in_path)
     remove_mutual_path(full_path, path_beyond_other_pieces)
@@ -167,6 +167,29 @@ class MoveValidator
     end
   end
 
+  def en_passant_conditions?(piece, destination, capture_contents)
+    direction_index = square_in_right_direction?(piece, destination, true)[0]
+    piece_rank, piece_file = piece.location
+    file_direction = piece.directions[direction_index][-1]
+    adjacent_file = piece_file + file_direction
+    adjacent_piece = current_board[piece_rank][adjacent_file]
+    possible_en_passant?(piece, capture_contents, adjacent_piece)
+  end
+
+  def possible_en_passant?(piece, capture_contents, adjacent_piece)
+    return false unless (capture_contents == :empty) && adjacent_piece.is_a?(Pawn)
+
+    adjacent_piece.colour != piece.colour
+  end
+
+  def past_pawn_double_move?(piece)
+    starting_rank = piece.colour == :white ? 1 : 6
+    past_starting_rank = past_board[starting_rank][adjacent_file]
+    return false unless past_starting_rank.is_a? Pawn
+
+    past_starting_rank.colour != colour ? :en_passant_move : false
+  end
+
   # True if a pawn is not on its starting rank
   def pawn_not_moved?(pawn)
     starting_rank = pawn.colour == :white ? 6 : 1
@@ -196,15 +219,13 @@ class MoveValidator
   # True if King can move to castle
   def valid_castle?(coords, direction, castle_rank)
     rook_file = direction == [0, 1] ? 7 : 0
-    return false unless board[castle_rank][rook_file].is_a? Rook
+    return false unless curren_board[castle_rank][rook_file].is_a? Rook
 
-    coords_up_to_rook = coords.reject { |rank, file| board[rank][file].is_a? Rook }
+    coords_up_to_rook = coords.reject { |rank, file| current_board[rank][file].is_a? Rook }
     coords_up_to_rook.none? { |coord| check?(coord, colour) }
   end
 
-
-  # ---------- Also for a version with quick move sorted ----------
-
+  # True if a destination is in the direction of a piece
   def square_in_right_direction?(piece, destination, report_direction = false)
     change_in_position = calculate_component_difference([piece.location, destination].transpose) # handle in other method
     return vertical_horizontal?(change_in_position, piece.directions, report_direction) if one_dimensional_movement?(change_in_position)
