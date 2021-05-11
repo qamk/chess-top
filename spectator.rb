@@ -17,7 +17,7 @@ class Spectator
   end
 
   def get_current_board(board)
-    @board = board
+    @board = board.dup
   end
 
   def update_location(rank, file)

@@ -26,11 +26,30 @@ class MoveValidator
     end
   end
 
+  # clean pawn path to remove diagonals unless a piece is present
   def plot_available_moves(piece, negate = true)
     negate = false if piece.is_a? Pawn
-    valid_locations = unblocked_path(piece, negate)
-    piece.update_available_moves(valid_locations)
+    valid_moves = unblocked_path(piece, negate)
+    piece.update_available_moves(valid_moves)
+    # clean_pawn_moves(piece) if piece.is_a? Pawn
   end
+
+  # def clean_pawn_moves(pawn)
+  #   sum = proc { |a, b| a + b }
+  #   same_colour_or_nil = proc { |rnk, |fle| current_board[rnk][fle].nil? or current_board[rnk][fle].colour == pawn.colour }
+  #   location = pawn.location
+  #   directions = pawn.directions[1..-1]
+  #   component_match = directions.map { |dirc| [dirc, location].transpose }
+  #   moves_to_remove_coords = component_match.map { |component| sum.call(component) }
+  #   moves_to_remove = [
+  #     !pawn_not_moved?(pawn),
+  #     same_colour_or_nil.call(moves_to_remove_coords[1]),
+  #     same_colour_or_nil.call(moves_to_remove_coords[-1])
+  #   ]
+  #   invalid_moves = moves_to_remove_coords.reject.with_index { |_, index| moves_to_remove[index] }
+  #   valid_moves = pawn.available_moves - invalid_moves
+  #   pawn.update_available_moves(valid_moves)
+  # end
 
   # Take a look at the current board
   def take_board_snapshot(board)
