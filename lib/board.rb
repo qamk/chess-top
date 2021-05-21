@@ -43,25 +43,6 @@ class Board
     board[pawn_rank][pawn_file] = pieces[new_piece].new(pawn.colour, pawn.location)
   end
 
-  def select_square(coords, colour)
-    square_contents = [coords[0], coords[1]]
-    validity = valid_selection?(square_contents, colour)
-    case validity
-    when nil
-      :empty
-    when true
-      [:friendly, square_contents]
-    else
-      :hostile
-    end
-  end
-
-  def valid_selection?(square_contents, colour)
-    return nil unless square_contents.respond_to? :colour
-
-    square_contents.colour == colour
-  end
-
   def update_board(piece, destination)
     old_row, old_col = piece.location
     new_row, new_col = destination

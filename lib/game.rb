@@ -59,7 +59,7 @@ class Game
       input = obtain_validate_input
       handle_commands(input) if COMMANDS.include? input
       processed = process_input(input)
-      selected_piece = select_piece(processed)
+      selected_piece = label_piece(processed)
       return selected_piece[-1] if selected_piece.include? :friendly
 
       selection_messages(selected_piece[0])
@@ -130,13 +130,11 @@ class Game
   end
 
   def obtain_meta_info(piece, destination)
-    { category: categorise_move(piece, destination, select_piece(destination)), contents: select_piece(destination) }
+    { category: categorise_move(piece, destination, label_piece(destination)), contents: label_piece(destination) }
   end
 
   def categorise_move(piece, destination, contents)
     return :castling if castling_on_starting_rank?(piece, destination, contents)
-
-    return :en_passant if game_validator.en_passant_conditions?(piece, destination, contents)
 
     :normal
   end
@@ -150,18 +148,12 @@ class Game
     return :ally if meta_info[:contents] == :friendly
 
     category = meta_info[:category]
-    method = category == :normal ? :validate_normal_move? : :validate_special_move
+    method = category == :normal ? :validate_normal_move? : :validate_castling_move
     send(method, piece, destination, meta_info)
   end
 
-  def validate_special_move(piece, destination, meta_info)
-    tag = meta_info[:category]
-    case tag
-    when :castling
-      game_validator.castling(piece, destination)
-    when :en_passant
-      game_validator.past_pawn_double_move?(piece)
-    end
+  def validate_castling_move(piece, destination, *)
+    game_validator.castling(piece, destination)
   end
 
   def castling_on_starting_rank?(piece, destination)
@@ -176,7 +168,7 @@ class Game
     return :not_in_moveset unless piece.available_moves.include? destination
 
     contents = meta_info[:contents]
-    return game_validator.pawn_move?(piece, destination, contents) if piece.is_a? Pawn
+    return game_validator.en_passant? if piece.is_a? Pawn
 
 
     %i[empty hostile].include? contents
@@ -277,8 +269,8 @@ class Game
   end
 
   # Interface with Board class
-  def select_piece(coords)
-    board.select_square(coords, active_player)
+  def label_piece(coords)
+    validator.label_square(coords, active_player)
   end
 
   def process_input(input = nil)

@@ -6,15 +6,12 @@ require_relative 'general'
 class Pawn < Piece
   def initialize(colour, location)
     super(colour, location)
-    @value = 3.5
-  end
-
-  def direction_list
+    @value = 1
     @directions = valid_player_directions.freeze
   end
 
   def valid_player_directions
-    if colour == :white
+    if colour == :black
       [[1, 0], [2, 0], [1, 1], [1, -1]]
     else
       [[-1, 0], [-2, 0], [-1, -1], [-1, 1]]

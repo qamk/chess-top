@@ -22,10 +22,10 @@ class Movement
     end
   end
 
-  def find_all_legal_moves(num_jumps = 7, negate = true, location = active_location, p_directions = active_directions)
+  def find_all_legal_moves(num_jumps = 25, negate = true, location = active_location, p_directions = active_directions)
     unfilterd_moves = []
     directions = p_directions.dup
-    directions.negate if negate
+    # directions = negate(directions) if negate
     (1..num_jumps).each do |scaler|
       scaled_directions = multiply_by_scaler(directions, scaler)
       prospective_moves = calculate_move_vectors(scaled_directions, location)
@@ -38,7 +38,7 @@ class Movement
   def normal_move(negate = true)
     return find_all_legal_moves unless %w[Pawn Knight King Bishop].include? active_piece.class.to_s
 
-    return find_all_legal_moves(14) if active_piece.class.to_s == 'Bishop'
+    return find_all_legal_moves(20) if active_piece.class.to_s == 'Bishop'
 
     find_all_legal_moves(1, negate)
   end
@@ -52,10 +52,10 @@ class Movement
   end
 
   # Appends the negated directions so a piece has a complete list of directions
-  def negate
-    additive_inverse = proc { |a, b| [a * -1, b * -1] }
-    inverse = map { |coord| additive_inverse.call(coord) }
-    inverse.each { |inv| push(inv) }
-  end
+  # def negate(list)
+  #   additive_inverse = proc { |a, b| [a * -1, b * -1] }
+  #   inverse = list.map { |coord| additive_inverse.call(coord) }
+  #   list.concat(inverse)
+  # end
 
 end

@@ -8,7 +8,10 @@ require_relative './../spectator'
 # Movement validation including check and checkmate, interfacing with spectator
 class MoveValidator
 
-  attr_reader :current_board, :spectator, :past_board
+  def right_target(target)
+    target.is_a?(Piece) ? target.location : target
+  end
+  attr_reader :current_board, :spectator, :past_board, :mover
 
   def initialize(board, spectator = Spectator.new, mover = Movement.new)
     @current_board = board
@@ -27,29 +30,11 @@ class MoveValidator
   end
 
   # clean pawn path to remove diagonals unless a piece is present
-  def plot_available_moves(piece, negate = true)
-    negate = false if piece.is_a? Pawn
-    valid_moves = unblocked_path(piece, negate)
+  def plot_available_moves(piece)
+    # negate = false if piece.is_a? Pawn
+    valid_moves = unblocked_path(piece)
     piece.update_available_moves(valid_moves)
-    # clean_pawn_moves(piece) if piece.is_a? Pawn
   end
-
-  # def clean_pawn_moves(pawn)
-  #   sum = proc { |a, b| a + b }
-  #   same_colour_or_nil = proc { |rnk, |fle| current_board[rnk][fle].nil? or current_board[rnk][fle].colour == pawn.colour }
-  #   location = pawn.location
-  #   directions = pawn.directions[1..-1]
-  #   component_match = directions.map { |dirc| [dirc, location].transpose }
-  #   moves_to_remove_coords = component_match.map { |component| sum.call(component) }
-  #   moves_to_remove = [
-  #     !pawn_not_moved?(pawn),
-  #     same_colour_or_nil.call(moves_to_remove_coords[1]),
-  #     same_colour_or_nil.call(moves_to_remove_coords[-1])
-  #   ]
-  #   invalid_moves = moves_to_remove_coords.reject.with_index { |_, index| moves_to_remove[index] }
-  #   valid_moves = pawn.available_moves - invalid_moves
-  #   pawn.update_available_moves(valid_moves)
-  # end
 
   # Take a look at the current board
   def take_board_snapshot(board)
@@ -61,100 +46,187 @@ class MoveValidator
   # Returns the specified King (or both Kings if unspecified)
   def find_king(colour = nil)
     king_list = spectator.scan_board_for_piece(King)
-    king_list.select { |king| king.colour == colour } unless colour.nil?
+    return king_list if colour.nil?
+
+    king_list.select { |king| king.colour == colour }
   end
 
   # Returns pieces around a target (piece or location)
   def identify_pieces_around_target(target)
-    target = target.is_a?(Piece) ? target.location : target
-    spectator.update_location(*target)
+    target = right_target(target)
+    spectator.update_location(target)
     spectator.scan_around_location
   end
 
   # Returns the opposition pieces that are "looking" at the target
   def identify_target_locking_candidates(target, colour)
+    target = right_target(target)
     pieces_around_target = identify_pieces_around_target(target)
-    # clean up empty nested arrays
-    in_direction = pieces_around_target.select { |piece| square_in_right_direction?(piece, target.location) }
+    in_direction = pieces_around_target.select { |piece| square_in_right_direction?(piece, target) }
     in_direction.reject { |piece| piece.colour == colour }
   end
 
   # Returns the path of each piece "looking" at the target
-  def in_sight(target, candidates, coords_only = false)
-    candidate_direction_to_target = direction_to_target_index(candidates, target)
-    candidate_direction_pair = candidates.zip(candidate_direction_to_target)
-    candidate_perspectives = candidate_direction_pair.map { |cand, dirc| mover.find_all_legal_moves(7, false, cand.location, dirc) }
+  def sight(target, candidates, coords_only = false)
+    candidate_direction_to_target = direction_to_target(target, candidates)
+    unclean_candidate_direction_pair = candidates.zip(candidate_direction_to_target)
+    # clean pawns here unless pawn is looking at index [1, 1], [-1, 1]
+    candidate_direction_pair = only_attacking(target, unclean_candidate_direction_pair)
+    candidate_perspectives = candidate_direction_pair.map { |cand, dirc| mover.find_all_legal_moves(14, false, cand.location, dirc) }
     return candidate_perspectives if coords_only
 
     candidate_perspectives.map { |persp| persp.map { |rank, file| current_board[rank][file] } }
   end
 
+  # Returns only the pawns that are attacking
+  def only_attacking(target, candidate_direction_pair)
+    difference = proc { |a, b| b - a }
+    target = right_target(target)
+    candidate_direction_pair.select do |candidate, _|
+      next(true) unless [King, Pawn].include? candidate.class
+
+      colour = candidate.colour
+      components = [candidate.location, target].transpose
+      distance = components.map { |component| difference.call(component) }
+      attacking(candidate, colour, distance)
+    end
+  end
+
+  def attacking(piece, colour, distance)
+    attacking_pawn = { black: [[1, 1], [1, -1]], white: [[-1, -1], [-1, 1]] }
+    attacking_king = [
+      [1, 1], [-1, 0], [-1, 1], [1, -1],
+      [1, 0], [-1, -1], [0, 1], [0, -1]
+    ]
+    piece.is_a?(King) ? attacking_king.include?(distance) : attacking_pawn[colour].include?(distance)
+  end
+
   # True if King is in check
   def king_in_check?(colour)
-    king = find_king(colour)
+    king = find_king(colour)[0]
     check?(king, colour)
   end
   
-  # True if pieces have an unobstructed view of target
-  def check?(target, colour)
-    candidates = identify_target_locking_candidates(target, colour)
-    candidate_viewpoints = in_sight(target, candidates)
-    candidate_viewpoints.any? { |view| view.one? { |square| square.is_a? Piece } }
+  # True if pieces have an unobstructed view of another piece
+  def check?(target, target_colour)
+    coords_only = target.is_a? Array
+    candidates = identify_target_locking_candidates(target, target_colour)
+    candidate_viewpoints = sight(target, candidates, coords_only)
+    return pseudo_check?(candidate_viewpoints, target, target_colour) if coords_only
+
+    candidates_first_piece = candidate_viewpoints.map { |view| view.select { |square| square.is_a? Piece } }.map(&:first)
+    candidates_first_piece.any? { |first_piece| first_piece == target }
+  end
+
+  def pseudo_check?(viewpoints, target, target_colour)
+    moveable = viewpoints.map do |view|
+      view.select do |rank, file|
+        next(true) if target == [rank, file]
+
+        next(true) if current_board[rank][file].is_a? Piece
+
+        false
+      end
+    end
+    moveable.any? { |view| view&.first == target }
   end
 
   # True King has no valid moves and checking pieces cannot be captured
-  def checkmate?(colour)
+  def checkmate?(colour, last_piece)
     return false unless king_in_check?(colour)
 
-    king = find_king(colour)
-    moves = king.available_moves.map { |rank, file| current_board[rank][file] }
-    candidates = moves.map { |move| identify_target_locking_candidates(move, colour) }
-    return false if no_way_out?(moves, candidates)
-
-    candidates.any? { |cand| check?(cand, colour) }
+    king = find_king(colour)[0]
+    last_colour = last_piece.colour
+    plot_available_moves(king)
+    moves = king.available_moves
+    return false if block_last_piece?(king, last_piece, last_colour)
+    
+    no_way_out?(moves, colour) && check?(last_piece, last_colour) 
   end
 
+  # True if the last moved piece can have its check blocked
+  def block_last_piece?(king, last_piece, last_colour)
+    last_piece_sight = sight(king, [last_piece], true)[0]
+    last_check_squares = last_piece_sight.select { |square| check?(square, last_colour) }
+    final_sight = last_check_squares - king.available_moves
+    !final_sight.empty?
+  end
+
+  # True if the chessboard is in stalemate
   def stalemate?(colour)
     return false if king_in_check?(colour)
 
-    king = find_king(colour)
-    moves = king.available_moves.map { |rank, file| current_board[rank][file] }
-    candidates = moves.map { |move| identify_target_locking_candidates(move, colour) }
-    no_way_out?(moves, candidates)
+    king = find_king(colour)[0]
+    plot_available_moves(king)
+    moves = king.available_moves
+    no_way_out?(moves, colour)
   end
 
-  # True if any move has a potential capture
-  def no_way_out?(moves, candidates)
-    move_candidate_pair = moves.zip(candidates)
-    viewpoint_coords = move_candidate_pair.map { |move, cand| in_sight(move, cand, true) }
-    moves.all? { |move| viewpoint_coords.any? { |view| view.include? move } }
+  # True if all moves have a potential capture
+  def no_way_out?(moves, colour)
+    moves.all? { |move| check?(move, colour) }
   end
   
   # Identify which direction the opponent pieces are facing
-  def direction_to_target_index(candidates, target)
-    direction_indices_to_target = candidates.map { |cand| square_in_right_direction?(cand, target.directions, true) }
-    # direction_indices_to_king = unclean_direction_indices_to_king.map { |index| index.empty? ? :wrong_direction : index }
+  def direction_to_target(target, candidates)
+    target = right_target(target)
+    direction_indices_to_target = candidates.map { |cand| square_in_right_direction?(cand, target, true) }
     paired_indices_pieces = direction_indices_to_target.flatten.zip(candidates)
     paired_indices_pieces.map { |index, piece| [piece.directions[index]] }
   end
 
   # Returns the unobstructed path of piece
-  def unblocked_path(piece, negate)
-    full_path = mover.focus_on(piece).normal_move(negate)
-    return full_path if %w[Knight Pawn King].include? piece.class.to_s
+  def unblocked_path(piece)
+    mover.focus_on(piece)
+    full_path = mover.normal_move
+    return full_path if %w[Knight King].include? piece.class.to_s
 
     path_on_board = full_path.map { |rank, file| current_board[rank][file] }
     other_pieces_in_path = find_other_pieces(path_on_board)
-    path_beyond_other_pieces = paths_of_other_pieces(piece, other_pieces_in_path)
-    remove_mutual_path(full_path, path_beyond_other_pieces)
+    return [] if other_pieces_in_path.empty?
+
+    path_beyond_other_pieces = extending_beyond_other_pieces(piece, other_pieces_in_path)
+    remove_mutual_path(piece, full_path, path_beyond_other_pieces, other_pieces_in_path)
   end
 
   # Returns list in main path that is not in other_pieces_path
-  def remove_mutual_path(main_path, other_pieces_path)
+  def remove_mutual_path(piece, full_path, other_pieces_path, other_pieces)
+    main_path = remove_friendly(piece, other_pieces, full_path)
     joined_other_pieces_path = other_pieces_path.reduce([], :concat)
-    main_path - joined_other_pieces_path
+    final_path = main_path - joined_other_pieces_path
+    return final_path unless piece.is_a? Pawn
+
+    final_path - invalid_pawn_moves(main_path, piece)
   end
 
+  def remove_friendly(piece, others, full_path)
+    colour = piece.colour
+    friendly_location = others.select { |other| other.colour == colour }.map(&:location)
+    full_path - friendly_location
+  end
+
+  # Returns a list of invalid moves derived from a pawn's possible moves
+  def invalid_pawn_moves(main_path, pawn)
+    move_coords = main_path
+    move_validity = find_pawn_moves_to_keep(move_coords, pawn)
+    move_coords.reject.with_index { |_, index| move_validity[index] }
+  end
+
+  # Returns the pawn moves that are valid
+  def find_pawn_moves_to_keep(moves, pawn)
+    colour = pawn.colour
+    move_contents = moves.map { |move| label_square(move, colour) }
+    move_contents.map.with_index do |content, index|
+      case index
+      when 1
+        pawn_not_moved?(pawn) && (content == :empty)
+      else
+        content == :hostile
+      end
+    end
+  end
+
+  # Returns other pieces in a given path
   def find_other_pieces(path)
     path.select do |piece|
       next(false) if piece.nil?
@@ -163,13 +235,16 @@ class MoveValidator
     end
   end
 
-  def paths_of_other_pieces(piece, other_pieces)
-    direction_of_other_pieces_indices = other_pieces.map { |others| square_in_right_direction?(piece, others.location, true) }
-    # map path in that direction from each other_pieces's location
-    # reject all mutual paths
-    direction_of_other_pieces = direction_of_other_pieces_indices.map { |index| piece.directions[index] }
+  # Obtains the path of "piece" that should be obstructed by "other_pieces"
+  def extending_beyond_other_pieces(piece, other_pieces)
+    direction_of_other_pieces_indices = other_pieces.map { |others| square_in_right_direction?(piece, others.location, true)[0] }
+    path_beyond(piece.directions, other_pieces, direction_of_other_pieces_indices)
+  end
+
+  def path_beyond(direction_ref, other_pieces, others_indices)
+    direction_of_other_pieces = others_indices.map { |index| [direction_ref[index]] }
     other_pieces_direction_pair = other_pieces.zip(direction_of_other_pieces)
-    other_pieces_direction_pair.map { |others, direction| mover.find_all_legal_moves(14, false, others.location, direction) }
+    other_pieces_direction_pair.map { |others, direction| mover.find_all_legal_moves(25, false, others.location, direction) }
   end
 
   def pawn_move(pawn, destination, contents)
@@ -186,27 +261,43 @@ class MoveValidator
     end
   end
 
-  def en_passant_conditions?(piece, destination, capture_contents)
-    direction_index = square_in_right_direction?(piece, destination, true)[0]
-    piece_rank, piece_file = piece.location
-    file_direction = piece.directions[direction_index][-1]
-    adjacent_file = piece_file + file_direction
-    adjacent_piece = current_board[piece_rank][adjacent_file]
-    possible_en_passant?(piece, capture_contents, adjacent_piece)
+  def en_passant?(piece, destination, contents)
+    adjacent_piece, adjacent_file = obtain_adjacent_piece(piece, destination)
+    present_condiions_met = possible_en_passant?(piece, contents, adjacent_piece)
+    present_condiions_met ? past_pawn_double_move?(piece, adjacent_file) : false
   end
 
-  def possible_en_passant?(piece, capture_contents, adjacent_piece)
-    return false unless (capture_contents == :empty) && adjacent_piece.is_a?(Pawn)
+  # True if the initial conditions have been met for en_passant
+  def obtain_adjacent_piece(pawn, destination)
+    pawn_rank, pawn_file = pawn.location
+    direction_index = pawn_diagonal(pawn.location, destination, pawn.directions)
+    return false if direction_index.nil?
 
-    adjacent_piece.colour != piece.colour
+    file_direction = pawn.directions[direction_index][-1]
+    adjacent_file = pawn_file + file_direction
+    adjacent_piece = current_board[pawn_rank][adjacent_file]
+    [adjacent_piece, adjacent_file]
   end
 
-  def past_pawn_double_move?(piece)
-    starting_rank = piece.colour == :white ? 1 : 6
+  def pawn_diagonal(location, destination, directions)
+    component_match = [location, destination].transpose
+    difference = calculate_component_difference(component_match)
+    directions.index(difference) unless [2, 0].include? difference
+  end
+
+  def possible_en_passant?(pawn, destination_contents, adjacent_piece)
+    return false unless (destination_contents == :empty) && adjacent_piece.is_a?(Pawn)
+
+    adjacent_piece.colour != pawn.colour
+  end
+
+  # False unless an enemy pawn made a double move from their starting rank
+  def past_pawn_double_move?(pawn, adjacent_file)
+    starting_rank = pawn.colour == :white ? 1 : 6
     past_starting_rank = past_board[starting_rank][adjacent_file]
     return false unless past_starting_rank.is_a? Pawn
 
-    past_starting_rank.colour != colour ? :en_passant_move : false
+    past_starting_rank.colour == pawn.colour ? false : :en_passant_move
   end
 
   # True if a pawn is not on its starting rank
@@ -221,7 +312,7 @@ class MoveValidator
     castle_direction_index = calculate_castle_direction(king.location, destination, directions)
     castle_direction = directions[castle_direction_index]
     castle_coords = mover.find_all_legal_moves(7, false, king.location, [castle_direction])
-    return :no_castle unless valid_castle?(castle_coords, castle_direction, rank)
+    return :no_castle unless valid_castle?(king.colour, castle_coords, castle_direction, rank)
 
     # [destination, castle_direction_index]
     true
@@ -236,9 +327,9 @@ class MoveValidator
   end
 
   # True if King can move to castle
-  def valid_castle?(coords, direction, castle_rank)
+  def valid_castle?(colour, coords, direction, castle_rank)
     rook_file = direction == [0, 1] ? 7 : 0
-    return false unless curren_board[castle_rank][rook_file].is_a? Rook
+    return false unless current_board[castle_rank][rook_file].is_a? Rook
 
     coords_up_to_rook = coords.reject { |rank, file| current_board[rank][file].is_a? Rook }
     coords_up_to_rook.none? { |coord| check?(coord, colour) }
@@ -270,9 +361,10 @@ class MoveValidator
 
   # The final check whether a destination is in the direction of some piece
   def valid_scalers?(scalers, report_direction = false)
-    return scalers.any? { |scaler| scaler.uniq.count == 1 } unless report_direction
+    valid = proc { |rank, file| (rank == file) && rank.positive? }
+    return scalers.any? { |scaler| valid.call(scaler) } unless report_direction
 
-    scalers.map { |scaler| scalers.index(scaler) if scaler.uniq.count == 1 }.compact
+    scalers.map { |scaler| scalers.index(scaler) if valid.call(scaler) }.compact
   end
 
   def calculate_scalers(directions, delta_position)
@@ -286,6 +378,25 @@ class MoveValidator
   def calculate_component_difference(component_vectors)
     difference = proc { |a, b| b - a }
     difference = component_vectors.map { |component| difference.call(component) }
+  end
+
+  def label_square(coords, colour)
+    square_contents = current_board[coords[0]][coords[1]]
+    validity = valid_selection?(square_contents, colour)
+    case validity
+    when nil
+      :empty
+    when true
+      [:friendly, square_contents]
+    else
+      :hostile
+    end
+  end
+
+  def valid_selection?(square_contents, colour)
+    return nil unless square_contents.respond_to? :colour
+
+    square_contents.colour == colour
   end
 
 end

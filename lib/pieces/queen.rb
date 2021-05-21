@@ -7,10 +7,7 @@ class Queen < Piece
   def initialize(colour, location)
     super(colour, location)
     @value = 3.5
-  end
-
-  def direction_list
-    @directions = [[1, 1], [1, -1], [1, 0], [0, 1]].freeze
+    @directions = [[1, 1], [-1, -1], [1, -1], [-1, 1], [1, 0], [-1, 0], [0, 1], [0, -1]].freeze
   end
 
 end
