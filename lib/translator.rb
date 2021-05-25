@@ -19,18 +19,20 @@ class Translator
   # end
 
   # Checks if the regexp is matched
-  def valid_notation?
-    input.match(/[QNBPKR][a-h][1-8]/).is_a? MatchData
+  def valid_notation?(notation = input)
+    return false if notation.length > 3
+
+    notation.match(/[QNBPKR]?[a-h][1-8]/).is_a? MatchData
   end
 
   def translate_location(loc = input)
-    row = loc[-1].decode
-    col = loc[-2].decode
+    row = decode(loc[-1])
+    col = decode(loc[-2])
     [row, col]
   end
 
-  def decode
-    is_a?(Integer) ? (to_i - 1) : (ord - 97)
+  def decode(digit)
+    digit.to_i.zero? ? (digit.ord - 97) : (digit.to_i - 1)
   end
 
 end

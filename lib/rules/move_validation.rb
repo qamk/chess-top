@@ -19,9 +19,9 @@ class MoveValidator
     @mover = mover
   end
 
-  def end_game_conditions?(colour)
-    if checkmate?(colour)
-      :mate
+  def end_game_conditions?(colour, last_piece)
+    if checkmate?(colour, last_piece)
+      :mated
     elsif stalemate?(colour)
       :stalemate
     else
@@ -319,9 +319,11 @@ class MoveValidator
   end
 
   def calculate_castle_direction(location, destination, directions)
+    # colour based on location
+    # [2, -2, 3, -3 based on colour]
     component_vectors = [location, destination].transpose
     difference = calculate_component_difference(component_vectors)
-    return false unless [2, -2].include? difference[-1]
+    return false unless [2, -2, 3, -3].include? difference[-1]
 
     vertical_horizontal?(difference, directions, true)
   end

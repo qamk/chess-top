@@ -6,8 +6,9 @@ require 'json'
 
 # Handles input and general game functions
 class Game
-  attr_reader :game_translator, :game_output, :game_board, :game_spectator,
-              :game_validator, :players, :active_player, :end_game
+  attr_reader :game_translator, :game_output, :game_board,
+              :game_spectator, :game_validator, :players,
+              :active_player, :end_game, :winner, :last_piece
 
   COMMANDS = %w[quit commands save].freeze
 
@@ -15,16 +16,22 @@ class Game
     @game_board = game_components[:board]
     @game_translator = game_components[:translator]
     @game_validator = game_components[:validator]
-    @game_output = game_components[:display]
+    @game_output = game_components[:output]
     @players = %i[white black]
     @active_player = nil
-    @end_game = nil
+    @last_piece = nil
+    @end_game = false
+    @winner = nil
   end
 
-  def play
+  def start
     # print welcome
     game_board.create_starting_board
     game_output.display_game_state
+    play
+  end
+
+  def play
     game_start until end_game?
     game_over_message
   end
@@ -38,7 +45,7 @@ class Game
     end
   end
 
-  def obtain_validate_input(destination: false)
+  def obtain_validate_input(destination = false)
     loop do
       input_messages(destination)
       input = gets.chomp.downcase
@@ -49,7 +56,8 @@ class Game
   end
 
   def selection_processes
-    game_output.take_snapshot(game_board.board).display_game_state
+    game_output.take_snapshot(game_board.board)
+    game_output.display_game_state
     game_validator.take_board_snapshot(game_board.board)
     make_selection
   end
@@ -57,18 +65,23 @@ class Game
   def make_selection
     loop do
       input = obtain_validate_input
-      handle_commands(input) if COMMANDS.include? input
+      return quit_game if input == 'quit'
+
+      if COMMANDS.include? input
+        handle_commands(input)
+        next
+      end
+
       processed = process_input(input)
       selected_piece = label_piece(processed)
-      return selected_piece[-1] if selected_piece.include? :friendly
+      return selected_piece[-1] if selected_piece.is_a? Array
 
-      selection_messages(selected_piece[0])
+      selection_messages(selected_piece)
     end
   end
 
   def selection_messages(key)
-    case key
-    when :hostile
+    if key == :hostile
       game_output.text_message(:hostile_selection)
     else
       game_output.text_message(:empty_selection)
@@ -77,22 +90,25 @@ class Game
 
   def movement_processes(selection)
     game_validator.plot_available_moves(selection)
-    game_output.obtain_last_piece(selection).display_game_state
+    game_output.obtain_last_piece(selection)
+    game_output.display_game_state
 
     make_move(selection)
   end
 
-  def make_move(piece)
+  def make_move(piece, destination = '')
     loop do
-      board_snapshot = game_board.dup
-      can_move = validate_move(piece)
-
-      break if can_move == true || end_game
+      # board_snapshot = game_board.dup
+      can_move, destination = validate_move(piece)
+      break if (can_move == true) || end_game
 
       movement_messages(can_move)
-      @game_board.board = board_snapshot
+      @game_board.revert_board
     end
-    game_board.update_board
+    return if end_game
+
+    @last_piece = piece
+    game_board.update_board(piece, destination)
   end
 
   def movement_messages(tag)
@@ -108,25 +124,25 @@ class Game
   end
 
   def validate_move(piece)
+    return :check if game_validator.king_in_check?(active_player)
+
     destination = obtain_destination_square
     return quit_game if destination == 'quit'
 
-    handle_commands(input) if COMMANDS.include? input
-    return :check if game_validator.king_in_check?(piece.colour)
-
+    handle_commands(destination) if COMMANDS.include? destination
 
     meta_info = obtain_meta_info
     valid_move = move_is_valid?(piece, destination, meta_info)
 
     return :check if check_after_move?(piece, destination)
 
-    valid_move
+    [valid_move, destination]
   end
 
   def check_after_move?(piece, destination)
     game_board.update_board(piece, destination)
     game_validator.take_board_snapshot(game_board.board)
-    game_validator.king_in_check?(piece.colour)
+    game_validator.king_in_check?(active_player)
   end
 
   def obtain_meta_info(piece, destination)
@@ -140,7 +156,7 @@ class Game
   end
 
   def obtain_destination_square
-    destination_input = obtain_validate_input(destination: true)
+    destination_input = obtain_validate_input(true)
     process_input(destination_input)
   end
 
@@ -168,21 +184,21 @@ class Game
     return :not_in_moveset unless piece.available_moves.include? destination
 
     contents = meta_info[:contents]
-    return game_validator.en_passant? if piece.is_a? Pawn
+    en_passant = game_validator.en_passant?(piece, destination, contents) if piece.is_a? Pawn
 
 
-    %i[empty hostile].include? contents
+    en_passant or %i[empty hostile].include?(contents)
   end
 
-  def promotion_check(selection)
-    return unless selection.is_a? Pawn
+  def promotion_check(piece)
+    return unless piece.is_a? Pawn
 
     board_end = active_player == :white ? 0 : 7
-    promote = selection.location[0] == board_end
-    return unless promote
+    
+    return unless piece.location[0] == board_end
 
     new_piece = new_piece_input.to_sym
-    game_board.promote(selection, new_piece)
+    game_board.promote(piece, new_piece)
     game_output.text_message(:promotion_success, new_piece)
   end
 
@@ -190,31 +206,43 @@ class Game
     game_output.text_message(:promotion_prompt)
     loop do
       valid_promotions = %w[queen q rook r bishiop b knight n]
-      response = gets.chomp.downcase[0]
-      return response if valid_promotions.include? response
+      response = gets.chomp.downcase
+      new_piece = response[0]
+      return new_piece if valid_promotions.include? response
 
       game_output.text_message(:invalid_promotion)
     end
   end
 
   def quit_game
-    @end_game = true
+    @end_game = 'quit'
     nil
   end
 
+  # change to have @winner and @end_game be any?
   def end_game?
     return true if @end_game
 
-    @end_game = players.select { |player| game_validator.end_game_conditions?(player) }
-    !end_game.empty?
+    conditions = players.map { |player| game_validator.end_game_conditions?(player, last_piece) }
+    @end_game, @winner = game_over_type(conditions)
+    end_game != false
+  end
+
+  def game_over_type(conditions)
+    sym = conditions.select { |cond| cond.is_a? Symbol }.shift
+    type = (sym or false)
+    loser_index = conditions.index(type)
+    winner_index = loser_index - 1
+    winning_colour = players[winner_index]
+    [type, winning_colour]
   end
 
   def game_over_message
-    case end_game.length
-    when 0
+    case end_game
+    when 'quit'
       game_output.text_message(:quit_msg, nil, false)
-    when 1
-      game_output.text_message(:checkmate_msg, end_game[0], false)
+    when :mated
+      game_output.text_message(:checkmate_msg, winner, false)
     else
       game_output.text_message(:stalemate_msg, nil, false)
     end
@@ -240,7 +268,7 @@ class Game
       }
     )
     file_name = obtain_file_name
-    File.open(file_name, 'w') { |file| file.puts seralised_obj }
+    File.open("saves/#{file_name}", 'w') { |file| file.puts seralised_obj }
   end
 
   def player_order
@@ -251,21 +279,31 @@ class Game
     loop do
       game_output.text_message(:file_name_prompt)
       fname = gets.chomp.downcase
-      return fname unless fname.length < 2
+      next if fname.length < 2
+
+      existing = File.exist?("saves/#{fname}")
+      return fname unless existing
+
+      game_output.text_message(:overwrite_prompt)
+      overwrite = gets.chomp.downcase
+      return fname if %w[y yes].include? overwrite
     end
     
   end
 
   def input_messages(destination)
     if destination
-      game_output.text_message(:selection_promt, active)
-    else
       game_output.text_message(:destination_prompt, active_player)
+    else
+      game_output.text_message(:selection_prompt, active_player)
     end
   end
 
   def valid_input?(input)
-    COMMANDS.include? input or @game_translator.focus_on(input).valid_notation?
+    return true if COMMANDS.include? input
+
+    game_translator.focus_on(input)
+    game_translator.valid_notation?
   end
 
   # Interface with Board class

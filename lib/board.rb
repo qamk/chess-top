@@ -6,10 +6,10 @@ require_relative './rules/move_validation'
 
 # Mechanics for interacting with the chess board
 class Board
-  attr_reader :board, :move_validator
-  def initialize(board = Array.new(8) { Array.new(8) }, args = {})
+  attr_reader :board, :old_board, :move_validator
+  def initialize(board = Array.new(8) { Array.new(8) })
     @board = board
-    # @move_validator = args[:move_validator]
+    @old_board = board
   end
 
   def create_starting_board
@@ -34,7 +34,7 @@ class Board
 
   def create_pawn_row(row, colour)
     file = [0, 1, 2, 3, 4, 5, 6, 7]
-    @board[row].map { Pawn.new(colour, [row, file.shift]) }
+    @board[row] = (0..7).map { Pawn.new(colour, [row, file.shift]) }
   end
 
   def promote(pawn, new_piece)
@@ -43,7 +43,12 @@ class Board
     board[pawn_rank][pawn_file] = pieces[new_piece].new(pawn.colour, pawn.location)
   end
 
+  def revert_board
+    @board = old_board.dup
+  end
+
   def update_board(piece, destination)
+    @old_board = board
     old_row, old_col = piece.location
     new_row, new_col = destination
     @board[new_row][new_col] = piece

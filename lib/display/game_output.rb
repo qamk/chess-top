@@ -42,7 +42,7 @@ class GameOutput
 
   def print_row(row, r_index)
     row.each_with_index do |piece, f_index|
-      colour_index = f_index % 2
+      colour_index = r_index + (f_index % 2)
       theme_colour = theme[colour_index]
       move_to = in_last_piece(r_index, f_index) unless last_piece.nil?
       print f_index

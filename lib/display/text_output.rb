@@ -55,7 +55,11 @@ module TextOutput
   end
 
   def file_name_prompt
-    puts "Please enter a #{"file name".blue} to save your game. At least 2 characters:"
+    puts "Please enter a #{"file name".blue} to save your game. At least 2 characters (e.g. initials):"
+  end
+
+  def overwrite_prompt
+    puts "#{"File aready exists".yellow}. Would you like to #{"overwrite"} this file? (y/n)"
   end
 
   def checkmate_msg(winner)
