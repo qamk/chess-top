@@ -228,6 +228,25 @@ describe Game do
     end
   end
 
+  describe '#validate_castling_move' do
+    let(:piece) { instance_double(Pawn) }
+    let(:destination) { [0, 0] }
+    context 'when called' do
+      it 'returns false if castling is invalid' do
+        allow(validator).to receive(:castling).and_return(false)
+        result = game.validate_castling_move(piece, destination)
+        expect(result).to be false
+      end
+
+      it 'calls Board#update_castle and returns true for a valid castle' do
+        allow(validator).to receive(:castling).and_return([])
+        expect(board).to receive(:update_castle)
+        result = game.validate_castling_move(piece, destination)
+        expect(result).to be true
+      end
+    end
+  end
+
   describe '#castling_on_starting_rank?' do
     let(:black_king) { King.new(:black, [0, 0]) }
     let(:white_king) { King.new(:white, [1, 0]) }

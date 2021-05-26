@@ -15,26 +15,26 @@ class Board
   def create_starting_board
     pawn_location = [[1, :black], [6, :white]]
     unique_pieces_location = [[0, :black], [7, :white]]
-    pawn_location.each { |row, colour| create_pawn_row(row, colour) }
-    unique_pieces_location.each { |row, colour| create_unique_pieces_row(row, colour) }
+    pawn_location.each { |rank, colour| create_pawn_rank(rank, colour) }
+    unique_pieces_location.each { |rank, colour| create_unique_pieces_rank(rank, colour) }
   end
 
-  def create_unique_pieces_row(row, colour)
-    @board[row] = [
-      Rook.new(colour, [row, 0]),
-      Knight.new(colour, [row, 1]),
-      Bishop.new(colour, [row, 2]),
-      Queen.new(colour, [row, 3]),
-      King.new(colour, [row, 4]),
-      Bishop.new(colour, [row, 5]),
-      Knight.new(colour, [row, 6]),
-      Rook.new(colour, [row, 7])
+  def create_unique_pieces_rank(rank, colour)
+    @board[rank] = [
+      Rook.new(colour, [rank, 0]),
+      Knight.new(colour, [rank, 1]),
+      Bishop.new(colour, [rank, 2]),
+      Queen.new(colour, [rank, 3]),
+      King.new(colour, [rank, 4]),
+      Bishop.new(colour, [rank, 5]),
+      Knight.new(colour, [rank, 6]),
+      Rook.new(colour, [rank, 7])
     ]
   end
 
-  def create_pawn_row(row, colour)
+  def create_pawn_rank(rank, colour)
     file = [0, 1, 2, 3, 4, 5, 6, 7]
-    @board[row] = (0..7).map { Pawn.new(colour, [row, file.shift]) }
+    @board[rank] = (0..7).map { Pawn.new(colour, [rank, file.shift]) }
   end
 
   def promote(pawn, new_piece)
@@ -47,12 +47,19 @@ class Board
     @board = old_board.dup
   end
 
+  def update_castle(destination)
+    old_rank, old_file, new_rank, new_file = destination
+    piece = board[old_rank][old_file]
+    new_destination = [new_rank, new_file]
+    update_board(piece, new_destination)
+  end
+
   def update_board(piece, destination)
     @old_board = board
-    old_row, old_col = piece.location
-    new_row, new_col = destination
-    @board[new_row][new_col] = piece
-    @board[old_row][old_col] = nil
+    old_rank, old_file = piece.location
+    new_rank, new_file = destination
+    @board[new_rank][new_file] = piece
+    @board[old_rank][old_file] = nil
     piece.update_location(destination)
   end
 

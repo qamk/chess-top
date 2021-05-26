@@ -7,7 +7,6 @@ require_relative './../spectator'
 
 # Movement validation including check and checkmate, interfacing with spectator
 class MoveValidator
-
   def right_target(target)
     target.is_a?(Piece) ? target.location : target
   end
@@ -106,19 +105,19 @@ class MoveValidator
     king = find_king(colour)[0]
     check?(king, colour)
   end
-  
+
   # True if pieces have an unobstructed view of another piece
   def check?(target, target_colour)
     coords_only = target.is_a? Array
     candidates = identify_target_locking_candidates(target, target_colour)
     candidate_viewpoints = sight(target, candidates, coords_only)
-    return pseudo_check?(candidate_viewpoints, target, target_colour) if coords_only
+    return pseudo_check?(candidate_viewpoints, target) if coords_only
 
     candidates_first_piece = candidate_viewpoints.map { |view| view.select { |square| square.is_a? Piece } }.map(&:first)
     candidates_first_piece.any? { |first_piece| first_piece == target }
   end
 
-  def pseudo_check?(viewpoints, target, target_colour)
+  def pseudo_check?(viewpoints, target)
     moveable = viewpoints.map do |view|
       view.select do |rank, file|
         next(true) if target == [rank, file]
@@ -140,8 +139,8 @@ class MoveValidator
     plot_available_moves(king)
     moves = king.available_moves
     return false if block_last_piece?(king, last_piece, last_colour)
-    
-    no_way_out?(moves, colour) && check?(last_piece, last_colour) 
+
+    no_way_out?(moves, colour) && check?(last_piece, last_colour)
   end
 
   # True if the last moved piece can have its check blocked
@@ -166,7 +165,7 @@ class MoveValidator
   def no_way_out?(moves, colour)
     moves.all? { |move| check?(move, colour) }
   end
-  
+ 
   # Identify which direction the opponent pieces are facing
   def direction_to_target(target, candidates)
     target = right_target(target)
@@ -312,24 +311,30 @@ class MoveValidator
     castle_direction_index = calculate_castle_direction(king.location, destination, directions)
     castle_direction = directions[castle_direction_index]
     castle_coords = mover.find_all_legal_moves(7, false, king.location, [castle_direction])
-    return :no_castle unless valid_castle?(king.colour, castle_coords, castle_direction, rank)
+    return false unless valid_castle?(king.colour, castle_coords, castle_direction)
 
-    # [destination, castle_direction_index]
-    true
+    calculate_rook_destination(destination, castle_direction)
+  end
+
+  def calculate_rook_destination(king_destination, direction)
+    current_rook_file = direction == [0, 1] ? 7 : 0
+    *, file = direction
+    king_rank, king_file = king_destination
+    new_rook_file = king_file + (file * -1)
+    [king_rank, current_rook_file, king_rank, new_rook_file]
   end
 
   def calculate_castle_direction(location, destination, directions)
-    # colour based on location
-    # [2, -2, 3, -3 based on colour]
     component_vectors = [location, destination].transpose
     difference = calculate_component_difference(component_vectors)
-    return false unless [2, -2, 3, -3].include? difference[-1]
+    return false unless [2, -3].include? difference[-1]
 
-    vertical_horizontal?(difference, directions, true)
+    vertical_horizontal?(difference, directions, true)[0]
   end
 
   # True if King can move to castle
-  def valid_castle?(colour, coords, direction, castle_rank)
+  def valid_castle?(colour, coords, direction)
+    castle_rank = colour == :white ? 7 : 0
     rook_file = direction == [0, 1] ? 7 : 0
     return false unless current_board[castle_rank][rook_file].is_a? Rook
 
@@ -400,5 +405,4 @@ class MoveValidator
 
     square_contents.colour == colour
   end
-
 end

@@ -81,6 +81,31 @@ describe Board do
     end
   end
 
+  describe '#update_castle' do
+    let(:destination) { [0, 7, 0, 5] }
+    let(:black_rook) { Rook.new(:black, [0, 7]) }
+    let(:board) {
+        [
+        [nil, nil, nil, nil, nil, nil, nil, black_rook],
+        [nil, nil, nil, nil, nil, nil, nil, nil],
+        [nil, nil, nil, nil, nil, nil, nil, nil],
+        [nil, nil, nil, nil, nil, nil, nil, nil],
+        [nil, nil, nil, nil, nil, nil, nil, nil],
+        [nil, nil, nil, nil, nil, nil, nil, nil],
+        [nil, nil, nil, nil, nil, nil, nil, nil],
+        [nil, nil, nil, nil, nil, nil, nil, nil]
+      ]
+    }
+    before { chess_board.instance_variable_set(:@board, board) }
+    context 'when called' do
+      it 'updates a piece\'s (rook) location' do
+        expect(chess_board).to receive(:update_board).with(black_rook, [0, 5])
+        chess_board.update_castle(destination)
+      end
+    end
+
+  end
+
   describe '#update_board' do
     let(:piece) { Bishop.new(:white, [7, 1]) }
     let(:rank) { 4 }

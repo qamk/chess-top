@@ -169,7 +169,11 @@ class Game
   end
 
   def validate_castling_move(piece, destination, *)
-    game_validator.castling(piece, destination)
+    castle = game_validator.castling(piece, destination)
+    return false if castle == false
+
+    game_board.update_castle(castle)
+    true
   end
 
   def castling_on_starting_rank?(piece, destination)
@@ -186,7 +190,6 @@ class Game
     contents = meta_info[:contents]
     en_passant = game_validator.en_passant?(piece, destination, contents) if piece.is_a? Pawn
 
-
     en_passant or %i[empty hostile].include?(contents)
   end
 
@@ -194,7 +197,7 @@ class Game
     return unless piece.is_a? Pawn
 
     board_end = active_player == :white ? 0 : 7
-    
+
     return unless piece.location[0] == board_end
 
     new_piece = new_piece_input.to_sym
@@ -288,7 +291,6 @@ class Game
       overwrite = gets.chomp.downcase
       return fname if %w[y yes].include? overwrite
     end
-    
   end
 
   def input_messages(destination)
@@ -315,5 +317,4 @@ class Game
     # quick_move translations
     game_translator.translate_location(input)
   end
-  
 end

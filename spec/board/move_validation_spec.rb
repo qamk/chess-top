@@ -254,7 +254,6 @@ describe MoveValidator do
     before { validator.instance_variable_set(:@current_board, en_passant_board) }
     context 'when the destination is valid and is empty' do
       it 'calls #possible_en_passant? and returns true' do
-        destination_contents = :empty
         destination = [2, 5]
         result = validator.obtain_adjacent_piece(white_pawn, destination)
         expect(result).to match_array([static_black_pawn, 5])
@@ -263,10 +262,10 @@ describe MoveValidator do
 
     context 'when the destination is invalid but is empty' do
       it 'returns false and does not call #possible_en_passant?' do
-        destination_contents = :empty
         destination = [4, 4]
+        expect(validator).not_to receive(:possible_en_passant?)
         result = validator.obtain_adjacent_piece(black_pawn, destination)
-        expect(result).to match_array([static_white_pawn, 4])
+        expect(result).to be false
       end
     end
     
@@ -312,23 +311,23 @@ describe MoveValidator do
     
   end
 
-  describe '#valid_castle?' do
-    let(:black_king) { King.new(:black, [0, 3]) }
+  describe '#castling' do
+    let(:black_king) { King.new(:black, [0, 4]) }
     let(:black_rook) { Rook.new(:black, [0, 7]) }
     let(:black_knight) { Knight.new(:black, [4, 2]) }
-    let(:white_queen) { Queen.new(:white, [3, 4]) }
-    let(:white_king) { King.new(:white, [7, 3]) }
+    let(:white_queen) { Queen.new(:white, [3, 6]) }
+    let(:white_king) { King.new(:white, [7, 4]) }
     let(:white_rook) { Rook.new(:white, [7, 0]) }
     let(:castle_board) {
       [
-        [nil, nil, nil, black_king, nil, nil, nil, black_rook],
+        [nil, nil, nil, nil, black_king, nil, nil, black_rook],
         [nil, nil, nil, nil, nil, nil, nil, nil],
         [nil, nil, nil, nil, nil, nil, nil, nil],
-        [nil, nil, nil, white_queen, nil, nil, nil, nil],
+        [nil, nil, nil, nil, nil, nil, white_queen, nil],
         [nil, nil, black_knight, nil, nil, nil, nil, nil],
         [nil, nil, nil, nil, nil, nil, nil, nil],
         [nil, nil, nil, nil, nil, nil, nil, nil],
-        [white_rook, nil, nil, white_king, nil, nil, nil, nil]
+        [white_rook, nil, nil, nil, white_king, nil, nil, nil]
       ]
     }
 
@@ -336,48 +335,30 @@ describe MoveValidator do
     before { spectator.instance_variable_set(:@board, castle_board) }
     context 'when no castling moves would result in check (valid move)' do
       it 'returns true' do
-        coords = [[7, 2], [7, 1]]
-        direction = [0, -1]
-        castle_rank = 7
-        colour = :white
-        result = validator.valid_castle?(colour, coords, direction, castle_rank)
-        expect(result).to be true
+        # coords = [[7, 2], [7, 1]]
+        # direction = [0, -1]
+        # castle_rank = 7
+        # colour = :white
+        # result = validator.valid_castle?(colour, coords, direction, castle_rank)
+        destination = [7, 1]
+        result = validator.castling(white_king, destination)
+        expect(result).to eq [7, 0, 7, 2]
       end
     end
 
     context 'when one or more castling moves would result in check (invalid castle)' do
       it 'returns false' do
-        coords = [[0, 4], [0, 5]]
-        direction = [0, 1]
-        castle_rank = 7
-        colour = :black
-        result = validator.valid_castle?(colour, coords, direction, castle_rank)
+        # coords = [[0, 4], [0, 5]]
+        # direction = [0, 1]
+        # castle_rank = 7
+        # colour = :black
+        destination = [0, 6]
+        result = validator.castling(black_king, destination)
         expect(result).to be false
       end
     end
 
   end
-
-  # one-dimention vs two-dimention and report direction assertions
-  # # describe '#square_in_right_direction?' do
-    
-  # # end
-
-  # # describe '#vertical_horizontal?' do
-    
-  # # end
-
-  # # describe '#valid_scalers?' do
-    
-  # end
-
-  # describe '#calculate_scalers' do
-    
-  # end
-
-  # describe 'calculate_component_difference' do
-    
-  # end
 
   describe '#king_in_check?' do
 
