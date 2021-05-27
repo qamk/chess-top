@@ -8,6 +8,7 @@ class Pawn < Piece
     super(colour, location)
     @value = 1
     @directions = valid_player_directions.freeze
+    @symbol = "\u265F"
   end
 
   def valid_player_directions
@@ -17,5 +18,4 @@ class Pawn < Piece
       [[-1, 0], [-2, 0], [-1, -1], [-1, 1]]
     end
   end
-
 end

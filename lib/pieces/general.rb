@@ -13,15 +13,16 @@ class Piece
     @colour = colour
   end
 
-  # replace clear with something non-destructive
   def update_available_moves(moves)
+    @available_moves = moves
+  end
+
+  def clear_available_moves
     @available_moves.clear
-    @available_moves.concat(moves)
   end
 
   def update_location(new_location)
-    @location.clear
-    @location.concat(new_location)
+    @location = new_location
   end
 
   # def captured?

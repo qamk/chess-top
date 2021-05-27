@@ -8,6 +8,6 @@ class King < Piece
     super(colour, location)
     @value = 100
     @directions = [[1, 1], [-1, -1], [-1, 1], [1, -1], [1, 0], [-1, 0], [0, 1], [0, -1]].freeze
+    @symbol = "\u265A"
   end
-
 end

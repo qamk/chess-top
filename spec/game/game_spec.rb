@@ -38,16 +38,16 @@ describe Game do
     context 'when selecting a piece with invalid then valid input' do
 
       it 'shows the input prompt twice, the invalid/error message once' do
+        expect(output).to receive(:text_message).with(:selection_prompt, anything, false).twice
         expect(output).to receive(:text_message).with(:invalid_notation)
-        expect(output).to receive(:text_message).with(:selection_prompt, anything).twice
         game.obtain_validate_input
       end
     end
 
     context 'when specifying a destination for a piece' do
       it 'uses the destination prompt' do
+        expect(output).to receive(:text_message).with(:destination_prompt, anything, false).twice
         expect(output).to receive(:text_message).with(:invalid_notation)
-        expect(output).to receive(:text_message).with(:destination_prompt, anything).twice
         game.obtain_validate_input(true)
       end
     end
@@ -71,16 +71,18 @@ describe Game do
   describe '#make_selection' do
     let(:white_pawn) { instance_double(Pawn) }
 
-    before { allow(game).to receive(:process_input) }
-    
+    before do
+      allow(game).to receive(:piece_can_move?)
+      allow(validator).to receive(:king_in_check?)
+    end
     context 'when an invalid (empty) then valid (friendly) square is specified' do
       before do
         allow(game).to receive(:obtain_validate_input)
-        allow(game).to receive(:label_piece).and_return(:empty, [:friendly, white_pawn])
+        allow(game).to receive(:piece_can_move?).and_return(:empty, [:friendly, white_pawn])
       end
       it 'displays an empty selection message, then returns the selected piece' do
-        expect(output).to receive(:text_message).with(:empty_selection)
-        expect(game).to receive(:process_input).twice
+        expect(output).to receive(:text_message).with(:empty_selection, anything, false)
+        expect(game).to receive(:piece_can_move?).twice
         game.make_selection
       end
     end
@@ -89,7 +91,7 @@ describe Game do
       before { allow(game).to receive(:obtain_validate_input).and_return('quit') }
       it 'calls #quit_game and sets @end_game to true before returning' do
         expect(game).to receive(:quit_game)
-        expect(game).not_to receive(:process_input)
+        expect(game).not_to receive(:piece_can_move?)
         game.make_selection
       end
     end
@@ -97,13 +99,28 @@ describe Game do
     context 'when another command (here \'commands\') is entered' do
       before do
         allow(game).to receive(:obtain_validate_input).and_return('commands', '')
-        allow(game).to receive(:label_piece).and_return([])
+        allow(game).to receive(:piece_can_move?).and_return([])
       end
 
       it 'calls #handle_command once and jumps to the next iteration' do
         expect(game).to receive(:handle_commands)
-        expect(game).to receive(:label_piece).once
+        expect(game).to receive(:piece_can_move?).once
         game.make_selection
+      end
+    end
+  end
+
+  describe '#piece_can_move?' do
+    context 'when a square is empty' do
+
+      before do
+        allow(game).to receive(:process_input)
+        allow(game).to receive(:label_location).and_return(:empty)
+      end
+
+      it 'returns nil' do
+        result = game.piece_can_move?('')
+        expect(result).to be_nil
       end
     end
   end
@@ -112,38 +129,37 @@ describe Game do
     before do
       allow(output).to receive(:text_message)
       allow(board).to receive(:update_board)
-      allow(board).to receive(:revert_board)
+      allow(game).to receive(:snapshots)
     end
 
     context 'when the move is invalid' do
       it 'prints \'check\' message if the player is in check' do
         allow(game).to receive(:validate_move).and_return([:check, ''], [true, ''])
-        expect(output).to receive(:text_message).with(:check_msg, anything)
-        expect(board).to receive(:revert_board)
+        expect(output).to receive(:text_message).with(:check_msg, anything, false)
         game.make_move('')
       end
 
       it 'prints \'ally\' message if the destination has an allied piece' do
         allow(game).to receive(:validate_move).and_return([:ally, ''], [true, ''])
-        expect(output).to receive(:text_message).with(:ally_occupied)
+        expect(output).to receive(:text_message).with(:ally_occupied, nil, false)
         game.make_move('')
       end
 
       it 'prints invalid \'castle\' message if the castling was invalid' do
         allow(game).to receive(:validate_move).and_return([:no_castle, ''], [true, ''])
-        expect(output).to receive(:text_message).with(:invalid_castle)
+        expect(output).to receive(:text_message).with(:invalid_castle, nil, false)
         game.make_move('')
       end
 
       it 'prints invalid \'en passant\' message if an attempt at en passant ended in failure' do
         allow(game).to receive(:validate_move).and_return([:no_en_passant, ''], [true, ''])
-        expect(output).to receive(:text_message).with(:invalid_en_passant)
+        expect(output).to receive(:text_message).with(:invalid_en_passant, nil, false)
         game.make_move('')
       end
 
       it 'prints \'not in moveset\' message if the destination is not a valid move' do
         allow(game).to receive(:validate_move).and_return([:not_in_moveset, ''], [true, ''])
-        expect(output).to receive(:text_message).with(:invalid_destination)
+        expect(output).to receive(:text_message).with(:invalid_destination, nil, false)
         game.make_move('')
       end
     end
@@ -155,33 +171,27 @@ describe Game do
       before { allow(validator).to receive(:king_in_check?) }
 
       it 'calls quit_game and returns' do
-        allow(game).to receive(:obtain_destination_square).and_return('quit')
+        allow(game).to receive(:obtain_validate_input).and_return('quit')
         expect(game).to receive(:quit_game)
         expect(game).not_to receive(:obtain_meta_info)
         game.validate_move('')
       end
 
-      it 'sets @end_game to true' do
-        allow(game).to receive(:obtain_destination_square).and_return('quit')
+      it 'sets @end_game to true and @quit to true' do
+        allow(game).to receive(:obtain_validate_input).and_return('quit')
         game.validate_move('')
         end_game = game.instance_variable_get(:@end_game)
-        expect(end_game).to be 'quit'
-      end
-    end
-
-    context 'when the current player\'s king is in check' do
-      it 'returns :check' do
-        allow(game).to receive(:obtain_destination_square)
-        expect(validator).to receive(:king_in_check?).and_return(true)
-        expect(game).not_to receive(:obtain_meta_info)
-        game.validate_move('')
+        quit = game.instance_variable_get(:@quit)
+        expect(end_game).to be true
+        expect(quit).to be true
       end
     end
 
     context 'when input is valid and the player\'s king is not in check' do
 
       before do
-        allow(game).to receive(:obtain_destination_square).and_return('destination')
+        allow(game).to receive(:obtain_validate_input)
+        allow(game).to receive(:process_input).and_return('destination')
         allow(validator).to receive(:king_in_check?).and_return(false)
         allow(game).to receive(:check_after_move?)
         allow(game).to receive(:move_is_valid?).and_return(true)
@@ -235,7 +245,7 @@ describe Game do
       it 'returns false if castling is invalid' do
         allow(validator).to receive(:castling).and_return(false)
         result = game.validate_castling_move(piece, destination)
-        expect(result).to be false
+        expect(result).to eq :no_castle
       end
 
       it 'calls Board#update_castle and returns true for a valid castle' do
@@ -251,6 +261,8 @@ describe Game do
     let(:black_king) { King.new(:black, [0, 0]) }
     let(:white_king) { King.new(:white, [1, 0]) }
     let(:not_a_king) { Piece.new(:some_colour, [100, 100]) }
+
+    before { allow(validator).to receive(:calculate_castle_direction).and_return(true) }
 
     context 'when the king is on the wrong rank' do
       it 'returns false' do
@@ -321,7 +333,6 @@ describe Game do
         allow(piece).to receive(:available_moves).and_return [[3, 0]]
         valid_destination = [3, 0]
         meta_info = { contents: :friendly }
-        expect(validator).to receive(:en_passant?)
         game.validate_normal_move?(piece, valid_destination, meta_info)
       end
     end
@@ -333,7 +344,6 @@ describe Game do
 
         valid_destination = [3, 0]
         meta_info = { contents: :empty }
-        expect(validator).to receive(:en_passant?)
         result = game.validate_normal_move?(piece, valid_destination, meta_info)
         expect(result).to be true
       end
@@ -434,7 +444,7 @@ describe Game do
         allow(output).to receive(:board_history_stack)
       end
       it 'creates a file' do
-        expect(File).to receive(:open).with("saves/#{fname}", 'w')
+        expect(File).to receive(:open).with("saves/#{fname}.json", 'w')
         game.serialise
       end
     end

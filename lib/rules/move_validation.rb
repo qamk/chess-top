@@ -18,6 +18,10 @@ class MoveValidator
     @mover = mover
   end
 
+  def copy(obj)
+    Marshal.load(Marshal.dump(obj))
+  end
+
   def end_game_conditions?(colour, last_piece)
     if checkmate?(colour, last_piece)
       :mated
@@ -30,15 +34,14 @@ class MoveValidator
 
   # clean pawn path to remove diagonals unless a piece is present
   def plot_available_moves(piece)
-    # negate = false if piece.is_a? Pawn
-    valid_moves = unblocked_path(piece)
-    piece.update_available_moves(valid_moves)
+    moves = unblocked_path(piece)
+    piece.update_available_moves(moves)
   end
 
   # Take a look at the current board
   def take_board_snapshot(board)
-    @past_board = current_board.dup
-    @current_board = board.dup
+    @past_board = copy(current_board)
+    @current_board = copy(board)
     @spectator.get_current_board(current_board)
   end
 
@@ -145,6 +148,8 @@ class MoveValidator
 
   # True if the last moved piece can have its check blocked
   def block_last_piece?(king, last_piece, last_colour)
+    return false if last_colour == king.colour
+
     last_piece_sight = sight(king, [last_piece], true)[0]
     last_check_squares = last_piece_sight.select { |square| check?(square, last_colour) }
     final_sight = last_check_squares - king.available_moves
@@ -156,8 +161,8 @@ class MoveValidator
     return false if king_in_check?(colour)
 
     king = find_king(colour)[0]
-    plot_available_moves(king)
-    moves = king.available_moves
+    mover.focus_on(king)
+    moves = mover.normal_move
     no_way_out?(moves, colour)
   end
 
@@ -178,12 +183,8 @@ class MoveValidator
   def unblocked_path(piece)
     mover.focus_on(piece)
     full_path = mover.normal_move
-    return full_path if %w[Knight King].include? piece.class.to_s
-
     path_on_board = full_path.map { |rank, file| current_board[rank][file] }
     other_pieces_in_path = find_other_pieces(path_on_board)
-    return [] if other_pieces_in_path.empty?
-
     path_beyond_other_pieces = extending_beyond_other_pieces(piece, other_pieces_in_path)
     remove_mutual_path(piece, full_path, path_beyond_other_pieces, other_pieces_in_path)
   end
@@ -193,9 +194,11 @@ class MoveValidator
     main_path = remove_friendly(piece, other_pieces, full_path)
     joined_other_pieces_path = other_pieces_path.reduce([], :concat)
     final_path = main_path - joined_other_pieces_path
+    return final_path_no_check(final_path, piece) if piece.is_a? King
+
     return final_path unless piece.is_a? Pawn
 
-    final_path - invalid_pawn_moves(main_path, piece)
+    final_path - invalid_pawn_moves(piece)
   end
 
   def remove_friendly(piece, others, full_path)
@@ -204,11 +207,17 @@ class MoveValidator
     full_path - friendly_location
   end
 
+  def final_path_no_check(path, piece)
+    colour = piece.colour
+    path.reject { |move| check?(move, colour) }
+  end
+
   # Returns a list of invalid moves derived from a pawn's possible moves
-  def invalid_pawn_moves(main_path, pawn)
-    move_coords = main_path
-    move_validity = find_pawn_moves_to_keep(move_coords, pawn)
-    move_coords.reject.with_index { |_, index| move_validity[index] }
+  def invalid_pawn_moves(pawn)
+    mover.focus_on(pawn)
+    main_path = mover.normal_move
+    move_validity = find_pawn_moves_to_keep(main_path, pawn)
+    main_path.reject.with_index { |_, index| move_validity[index] }
   end
 
   # Returns the pawn moves that are valid
@@ -216,11 +225,14 @@ class MoveValidator
     colour = pawn.colour
     move_contents = moves.map { |move| label_square(move, colour) }
     move_contents.map.with_index do |content, index|
+      passant = en_passant?(pawn, moves[index], content)
       case index
+      when 0
+        content == :empty
       when 1
         pawn_not_moved?(pawn) && (content == :empty)
       else
-        content == :hostile
+        (content == :hostile) || passant
       end
     end
   end
@@ -240,24 +252,11 @@ class MoveValidator
     path_beyond(piece.directions, other_pieces, direction_of_other_pieces_indices)
   end
 
+  # Continues the path of a piece, beyond other pieces (obstacles)
   def path_beyond(direction_ref, other_pieces, others_indices)
     direction_of_other_pieces = others_indices.map { |index| [direction_ref[index]] }
     other_pieces_direction_pair = other_pieces.zip(direction_of_other_pieces)
     other_pieces_direction_pair.map { |others, direction| mover.find_all_legal_moves(25, false, others.location, direction) }
-  end
-
-  def pawn_move(pawn, destination, contents)
-    return false if contents == :friendly
-
-    direction = square_in_right_direction?(pawn, destination, true)[0]
-    case direction
-    when 0
-      contents == :empty
-    when 1
-      pawn_not_moved?(pawn)
-    else
-      contents == :hostile
-    end
   end
 
   def en_passant?(piece, destination, contents)
@@ -281,7 +280,7 @@ class MoveValidator
   def pawn_diagonal(location, destination, directions)
     component_match = [location, destination].transpose
     difference = calculate_component_difference(component_match)
-    directions.index(difference) unless [2, 0].include? difference
+    directions.index(difference) unless [2, 0, -2].include? difference
   end
 
   def possible_en_passant?(pawn, destination_contents, adjacent_piece)
@@ -299,7 +298,7 @@ class MoveValidator
     past_starting_rank.colour == pawn.colour ? false : :en_passant_move
   end
 
-  # True if a pawn is not on its starting rank
+  # True if a pawn is on its starting rank
   def pawn_not_moved?(pawn)
     starting_rank = pawn.colour == :white ? 6 : 1
     pawn.location[0] == starting_rank
@@ -341,6 +340,21 @@ class MoveValidator
     coords_up_to_rook = coords.reject { |rank, file| current_board[rank][file].is_a? Rook }
     coords_up_to_rook.none? { |coord| check?(coord, colour) }
   end
+
+  def label_square(coords, colour)
+    square_contents = current_board[coords[0]][coords[1]]
+    validity = valid_selection?(square_contents, colour)
+    case validity
+    when nil
+      :empty
+    when true
+      [:friendly, square_contents]
+    else
+      :hostile
+    end
+  end
+
+  private
 
   # True if a destination is in the direction of a piece
   def square_in_right_direction?(piece, destination, report_direction = false)
@@ -385,19 +399,6 @@ class MoveValidator
   def calculate_component_difference(component_vectors)
     difference = proc { |a, b| b - a }
     difference = component_vectors.map { |component| difference.call(component) }
-  end
-
-  def label_square(coords, colour)
-    square_contents = current_board[coords[0]][coords[1]]
-    validity = valid_selection?(square_contents, colour)
-    case validity
-    when nil
-      :empty
-    when true
-      [:friendly, square_contents]
-    else
-      :hostile
-    end
   end
 
   def valid_selection?(square_contents, colour)

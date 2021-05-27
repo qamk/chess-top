@@ -173,6 +173,7 @@ describe MoveValidator do
     let(:black_knight) { Knight.new(:black, [4, 5]) }
     let(:white_rook) { Rook.new(:white, [4, 2]) }
     let(:white_pawn) { Pawn.new(:white, [4, 4]) }
+    let(:white_pawn_two) { Pawn.new(:white, [6, 1]) }
     let(:white_bishop) { Bishop.new(:white, [3, 4]) }
     let(:example_board) {
       [
@@ -182,7 +183,7 @@ describe MoveValidator do
         [nil, nil, nil, nil, white_bishop, nil, nil, nil],
         [nil, nil, white_rook, nil, white_pawn, black_knight, nil, nil],
         [nil, nil, nil, nil, nil, nil, nil, nil],
-        [nil, nil, nil, nil, nil, nil, nil, nil],
+        [nil, white_pawn_two, nil, nil, nil, nil, nil, nil],
         [nil, nil, nil, nil, nil, nil, nil, nil]
       ]
     }
@@ -192,8 +193,10 @@ describe MoveValidator do
     it 'reports the right path for the Pawns' do
       result_black = validator.unblocked_path(black_pawn)
       result_white = validator.unblocked_path(white_pawn)
-      expect(result_black).to be_empty
+      result_white_two = validator.unblocked_path(white_pawn_two)
+      expect(result_black).to eq [[3, 2]]
       expect(result_white).to be_empty
+      expect(result_white_two).to match_array([[5, 1], [4, 1]])
     end
 
     it 'reports the right path for the Knight' do
@@ -208,8 +211,8 @@ describe MoveValidator do
     it 'reports the right path for the Bishop' do
       result = validator.unblocked_path(white_bishop)
       arr = [
-        [2, 3], [1, 2], [2, 5], [1, 6], [0, 7],
-        [4, 5], [4, 3], [5, 2], [6, 1], [7, 0]
+        [2, 3], [1, 2], [2, 5], [1, 6],
+        [0, 7], [4, 5], [4, 3], [5, 2]
       ]
       expect(result).to match_array(arr)
     end

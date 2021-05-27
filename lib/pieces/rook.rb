@@ -8,6 +8,6 @@ class Rook < Piece
     super(colour, location)
     @value = 3
     @directions = [[1, 0], [-1, 0], [0, 1], [0, -1]].freeze
+    @symbol = "\u265C"
   end
-
 end

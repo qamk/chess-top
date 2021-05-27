@@ -6,10 +6,6 @@ class Translator
 
   attr_reader :input
 
-  def focus_on(input)
-    @inptut = input
-  end
-
   # For when the different ways to move are sorted out
   # def translate
   #   return 'input_error' unless valid_notation?
@@ -19,13 +15,13 @@ class Translator
   # end
 
   # Checks if the regexp is matched
-  def valid_notation?(notation = input)
+  def valid_notation?(notation)
     return false if notation.length > 3
 
     notation.match(/[QNBPKR]?[a-h][1-8]/).is_a? MatchData
   end
 
-  def translate_location(loc = input)
+  def translate_location(loc)
     row = decode(loc[-1])
     col = decode(loc[-2])
     [row, col]

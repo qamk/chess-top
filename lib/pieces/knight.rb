@@ -11,6 +11,6 @@ class Knight < Piece
       [2, 1], [1, 2], [-2, 1], [-1, 2],
       [-2, -1], [-1, -2], [2, -1], [1, -2]
     ].freeze
+    @symbol = "\u265E"
   end
-
 end
