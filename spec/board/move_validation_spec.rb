@@ -472,6 +472,35 @@ describe MoveValidator do
       it { should be_checkmate(:white, black_queen) }
     end
 
+    context 'Fool\'s mate' do
+      let(:black_pawn) { Pawn.new(:black, [1, 4]) }
+      let(:black_pawn_two) { Pawn.new(:black, [1, 3]) }
+      let(:black_queen) { Queen.new(:black, [0, 3]) }
+      let(:black_bishop) { Bishop.new(:black, [0, 5]) }
+      let(:black_king) { King.new(:black, [0, 4]) }
+      let(:white_queen) { Queen.new(:white, [3, 7]) }
+      let(:checkmate_board) {
+        [
+          [nil, nil, nil, black_queen, black_king, black_bishop, nil, nil],
+          [nil, nil, nil, black_pawn_two, black_pawn, nil, nil, nil],
+          [nil, nil, nil, nil, nil, nil, nil, nil],
+          [nil, nil, nil, nil, nil, nil, nil, white_queen],
+          [nil, nil, nil, nil, nil, nil, nil, nil],
+          [nil, nil, nil, nil, nil, nil, nil, nil],
+          [nil, nil, nil, nil, nil, nil, nil, nil],
+          [nil, nil, nil, nil, nil, nil, nil, nil]
+        ]
+      }
+      before { validator.instance_variable_set(:@current_board, checkmate_board) }
+      before { validator.spectator.instance_variable_set(:@board, checkmate_board) }
+      it 'should call #no_way_out' do
+        expect(validator).to receive(:no_way_out?)
+        p validator.block_last_piece?(black_king, white_queen, :white)
+        validator.checkmate?(:black, white_queen)
+      end
+      it { should be_checkmate(:black, white_queen) }
+    end
+
     context 'when a king has at least on move available' do
 
       let(:black_knight) { Knight.new(:black, [4, 1]) }

@@ -52,6 +52,7 @@ class Game
       break if end_game
 
       movement_processes(selection)
+      game_validator.take_board_snapshot(game_board.board)
       promotion_check(selection) unless end_game?
     end
   end
@@ -69,13 +70,12 @@ class Game
   def selection_processes
     game_output.take_snapshot(game_board.board)
     game_output.display_game_state
-    game_validator.take_board_snapshot(game_board.board)
+    game_validator.take_board_snapshot(game_board.board, true)
     make_selection
   end
 
   def make_selection
     loop do
-      movement_messages(:check) if game_validator.king_in_check?(active_player)
       input = obtain_validate_input
       return quit_game if input =~ /\s*quit\s*/
 
@@ -122,6 +122,7 @@ class Game
       break if (can_move == true) || end_game
 
       movement_messages(can_move) unless can_move.nil?
+      piece = reselect if %i[check drop].include? can_move
     end
     return if end_game
 
@@ -129,6 +130,14 @@ class Game
     snapshots
     game_board.update_board(piece, destination)
     en_passant_update(piece, destination) if piece.is_a? Pawn
+  end
+
+  def reselect
+    game_output.clear_current_piece
+    selection = selection_processes
+    game_output.obtain_current_piece(selection)
+    game_output.display_game_state
+    selection
   end
 
   def en_passant_update(piece, destination)
@@ -152,6 +161,8 @@ class Game
       not_in_moveset: [:invalid_destination, nil, false]
     }
     method_details = movement_issues[tag]
+    return if method_details.nil?
+
     game_output.text_message(*method_details)
   end
 
@@ -160,6 +171,8 @@ class Game
     return quit_game if destination_input =~ /\s*quit\s*/
 
     destination = process_input(destination_input)
+
+    return :drop if destination_input == 'drop'
 
     return handle_commands(destination_input) if COMMANDS.include? destination_input
 
@@ -175,7 +188,7 @@ class Game
 
   def check_after_move?(piece, destination)
     game_board.update_pseudo_board(piece, destination)
-    game_validator.take_board_snapshot(game_board.pseudo_board)
+    game_validator.take_board_snapshot(game_board.pseudo_board, true)
     game_validator.king_in_check?(active_player)
   end
 
@@ -308,7 +321,7 @@ class Game
   end
 
   def format_board(board)
-    board.map.with_index do |rank|
+    board.map do |rank|
       rank.map do |square|
         next if square.nil?
 
@@ -328,6 +341,7 @@ class Game
       game_output.text_message(:file_name_prompt)
       fname = gets.chomp.downcase
       return if fname =~ /\s*q(uit)?\s*/
+
       next if fname.length < 2
 
       existing = File.exist?("saves/#{fname}.json")
@@ -358,7 +372,8 @@ class Game
   end
 
   def valid_input?(input)
-    return true if COMMANDS.include? input
+    local_commands = %w[drop] # more expected
+    return true if COMMANDS.include?(input) || local_commands.include?(input)
 
     game_translator.valid_notation?(input)
   end

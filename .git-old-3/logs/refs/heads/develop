@@ -1,0 +1,7 @@
+0000000000000000000000000000000000000000 ea1af2a47a8b33db7129ab9b3733aaf333b8f7bf qamk <qamking@gmail.com> 1615995034 +0000	branch: Created from HEAD
+ea1af2a47a8b33db7129ab9b3733aaf333b8f7bf a5795c1416a48f9cacb9f5b1b45210e0b1d34b31 qamk <qamking@gmail.com> 1616004365 +0000	commit: Create (sub-)directories
+a5795c1416a48f9cacb9f5b1b45210e0b1d34b31 87857f4ba3667d268d0716f5ff42809e8403867f qamk <qamking@gmail.com> 1616005237 +0000	commit (amend): Create (sub-)directories and files
+87857f4ba3667d268d0716f5ff42809e8403867f 7c2192bd91d261dc178e9420944bc844f4a9749e qamk <qamking@gmail.com> 1616024445 +0000	commit: Create Piece attributes
+7c2192bd91d261dc178e9420944bc844f4a9749e 0f0e4ace5517897f08d2f5d18373d9c07afcbf50 qamk <qamking@gmail.com> 1616291339 +0000	commit: add direction for each piece
+0f0e4ace5517897f08d2f5d18373d9c07afcbf50 c76b7e6813fca7f2659ba817c0395d419b1af706 qamk <qamking@gmail.com> 1616434737 +0000	commit (amend): add direction for each piece
+c76b7e6813fca7f2659ba817c0395d419b1af706 9559ba85c3923c9526f8d197cf98807c5c32c625 qamk <qamking@gmail.com> 1622153476 +0100	merge mainfeatures: Fast-forward

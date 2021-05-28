@@ -4,6 +4,7 @@
 
 require_relative 'movement'
 require_relative './../spectator'
+require 'pry'
 
 # Movement validation including check and checkmate, interfacing with spectator
 class MoveValidator
@@ -14,6 +15,7 @@ class MoveValidator
 
   def initialize(board, spectator = Spectator.new, mover = Movement.new)
     @current_board = board
+    @past_board = board
     @spectator = spectator
     @mover = mover
   end
@@ -39,8 +41,8 @@ class MoveValidator
   end
 
   # Take a look at the current board
-  def take_board_snapshot(board)
-    @past_board = copy(current_board)
+  def take_board_snapshot(board, preserve_past = false)
+    @past_board = copy(current_board) unless preserve_past
     @current_board = copy(board)
     @spectator.get_current_board(current_board)
   end
@@ -110,14 +112,23 @@ class MoveValidator
   end
 
   # True if pieces have an unobstructed view of another piece
-  def check?(target, target_colour)
+  def check?(target, target_colour, ignore_one_jumps = false)
     coords_only = target.is_a? Array
     candidates = identify_target_locking_candidates(target, target_colour)
+    candidates = ignore_one_jump_candidates(candidates, ignore_one_jumps)
     candidate_viewpoints = sight(target, candidates, coords_only)
     return pseudo_check?(candidate_viewpoints, target) if coords_only
 
     candidates_first_piece = candidate_viewpoints.map { |view| view.select { |square| square.is_a? Piece } }.map(&:first)
     candidates_first_piece.any? { |first_piece| first_piece == target }
+  end
+
+  def ignore_one_jump_candidates(candidates, ignore_one_jumps)
+    return candidates unless ignore_one_jumps
+
+    one_jumpers = ->(cand) { [King, Pawn].include?(cand.class) }
+
+    candidates.reject { |cand| one_jumpers.call(cand) }
   end
 
   def pseudo_check?(viewpoints, target)
@@ -141,19 +152,32 @@ class MoveValidator
     last_colour = last_piece.colour
     plot_available_moves(king)
     moves = king.available_moves
-    return false if block_last_piece?(king, last_piece, last_colour)
+    unblockable = !block_last_piece?(king, last_piece, last_colour)
+    no_way_out = no_way_out?(moves, colour)
 
-    no_way_out?(moves, colour) && check?(last_piece, last_colour)
+    unblockable && no_way_out
+
+    # THE END GAME
   end
 
   # True if the last moved piece can have its check blocked
   def block_last_piece?(king, last_piece, last_colour)
-    return false if last_colour == king.colour
-
-    last_piece_sight = sight(king, [last_piece], true)[0]
-    last_check_squares = last_piece_sight.select { |square| check?(square, last_colour) }
-    final_sight = last_check_squares - king.available_moves
+    last_piece_sight = sight(king, [last_piece], true)[0] << last_piece.location
+    last_check_squares = last_piece_sight.select { |square| check?(square, last_colour, true) }.reject { |sqr| sqr == king.location }
+    king_moves = king_only_moves(king, last_check_squares, last_colour)
+    final_sight = last_check_squares - king_moves
     !final_sight.empty?
+  end
+
+  # Returns moves belonging to the King and King alone
+  def king_only_moves(king, squares, colour)
+    candidates_per_square = squares.map { |square| identify_target_locking_candidates(square, colour) }
+    candidate_square_pair = squares.zip(candidates_per_square)
+    mutual_squares = candidate_square_pair.map do |square, candidates|
+      square unless candidates.all? { |cand| cand.is_a? King }
+    end
+    mover.focus_on(king)
+    mover.normal_move - mutual_squares
   end
 
   # True if the chessboard is in stalemate
@@ -168,9 +192,11 @@ class MoveValidator
 
   # True if all moves have a potential capture
   def no_way_out?(moves, colour)
+    return true if moves.empty?
+
     moves.all? { |move| check?(move, colour) }
   end
- 
+
   # Identify which direction the opponent pieces are facing
   def direction_to_target(target, candidates)
     target = right_target(target)

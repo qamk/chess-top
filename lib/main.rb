@@ -72,7 +72,6 @@ class Main
 
     game = Game.new(game_components)
     game.load(save)
-    gets
     game.play
   end
 

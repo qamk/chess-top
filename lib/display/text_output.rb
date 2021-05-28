@@ -36,8 +36,8 @@ module TextOutput
   def destination_prompt(colour)
     colour = colour.to_s.bold
     puts "#{colour} to move. Please enter the location you want to move this piece to (alternatively enter a command): "
-    print "type 'commands' to see the command list".yellow226.dim
-    puts
+    puts "Type #{'drop'.italics} to select another piece."
+    puts "type 'commands' to see the command list".yellow226.dim
   end
 
   def invalid_destination
@@ -73,8 +73,9 @@ module TextOutput
   end
 
   def checkmate_msg(winner)
-    loser = winner == 'Black' ? 'White' : 'Black'
-    puts "#{'Checkmate'.green} on #{loser} king! Congrats to #{winner.upcase.bold}"
+    winner = winner.to_s
+    loser = winner == 'black' ? 'white' : 'black'
+    puts "#{'Checkmate'.green} on #{loser} king! Congrats to #{winner.upcase.bold}!!!!!!"
   end
 
   def stalemate_msg

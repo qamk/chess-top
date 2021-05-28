@@ -13,7 +13,6 @@ require_relative './../../lib/pieces/knight'
 require_relative './../../lib/pieces/rook'
 require_relative './../../lib/pieces/general'
 
-
 describe Game do
 
   subject(:game) { described_class.new(game_components) }
@@ -29,12 +28,12 @@ describe Game do
   }
 
   describe '#obtain_validate_input' do
-    
+
     before do
       allow(game).to receive(:gets).and_return('')
       allow(game).to receive(:valid_input?).and_return(false, true)
     end
-    
+
     context 'when selecting a piece with invalid then valid input' do
 
       it 'shows the input prompt twice, the invalid/error message once' do
@@ -51,7 +50,6 @@ describe Game do
         game.obtain_validate_input(true)
       end
     end
-    
   end
 
   describe '#selection_processes' do
@@ -135,6 +133,7 @@ describe Game do
     context 'when the move is invalid' do
       it 'prints \'check\' message if the player is in check' do
         allow(game).to receive(:validate_move).and_return([:check, ''], [true, ''])
+        expect(game).to receive(:reselect).once
         expect(output).to receive(:text_message).with(:check_msg, anything, false)
         game.make_move('')
       end
