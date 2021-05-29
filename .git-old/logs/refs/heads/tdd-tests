@@ -1,3 +1,0 @@
-0000000000000000000000000000000000000000 87857f4ba3667d268d0716f5ff42809e8403867f qamk <qamking@gmail.com> 1616005370 +0000	branch: Created from HEAD
-87857f4ba3667d268d0716f5ff42809e8403867f 42b3a8501edb82822a83424e14b63f606b1414d5 qamk <qamking@gmail.com> 1616006085 +0000	commit: Create rspec (sub-)directories and files
-42b3a8501edb82822a83424e14b63f606b1414d5 7d8a6e87bb4fbfa7fa676a554e12b1a6712b13de qamk <qamking@gmail.com> 1616434466 +0000	commit: Add some tests for movement
